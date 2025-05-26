@@ -500,7 +500,7 @@ window.onload = function () {
             });
         });
     }
-    }, 5000); // mỗi 5 giây
+    }, 300000); // mỗi 5 giây
 };
 
 function recallNumber(number) {
