@@ -131,7 +131,7 @@ function showDashboard(user) {
         document.getElementById("phongkham-action").style.display = "block";
         document.getElementById("main-heading").innerText = "GỌI BỆNH NHÂN VÀO PHÒNG KHÁM!";
         document.getElementById("top-right-buttons").style.display = "block";
-        updateCalledList();
+        setTimeout(updateCalledList, 100);
     } else {
         showClinicSelect(); // ✅ Chỉ gọi khi chưa có selectedClinic
     }
@@ -490,8 +490,18 @@ window.onload = function () {
             });
         });
     });
+    // 🟢 Nếu là tài khoản phongkham, thì cập nhật số đã cấp mỗi 5 giây
+    setInterval(() => {
+    const user = JSON.parse(localStorage.getItem("currentUser"));
+    if (user && user.role === "phongkham") {
+        loadCalledNumbers(() => {
+            loadCalledHistory(() => {
+                updateCalledList(); // ✅ Cập nhật đúng
+            });
+        });
+    }
+    }, 5000); // mỗi 5 giây
 };
-
 
 function recallNumber(number) {
     const slug = selectedClinic.toLowerCase().replace(/\s+/g, "-");
