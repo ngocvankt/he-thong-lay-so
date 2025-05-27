@@ -49,7 +49,9 @@ let calledNumbers = {}; // Phatso cấp số
 let calledHistory = {}; // Phongkham đã gọi
 let audioQueue = [];         // Hàng đợi âm thanh
 let isPlayingAudio = false;  // Trạng thái đang phát hay không
-
+function normalizeKey(name) {
+    return name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f\s]/g, "-");
+}
 function saveClinics() {
     firebase.database().ref("clinics").set(clinics);
 }
@@ -57,8 +59,8 @@ function saveClinics() {
 function loadClinics(callback) {
     firebase.database().ref("clinics").once("value", snapshot => {
         const data = snapshot.val();
-        if (data) {
-            clinics = data;
+        if (Array.isArray(data)) {
+            clinics = data; // ✅ CHỈ GÁN KHI CHẮC CHẮN data là MẢNG
         }
         if (typeof callback === "function") callback();
     });
@@ -222,19 +224,20 @@ function saveChanges() {
         const index = input.getAttribute("data-index");
         const newLimit = Number(input.value);
         const newName = nameInputs[idx].value.trim();
+        const oldName = clinics[index].name;
 
-        if (newName !== clinics[index].name) {
-            // Nếu tên thay đổi, cần cập nhật dữ liệu liên quan
-            const oldName = clinics[index].name;
+        const oldKey = normalizeKey(oldName);
+        const newKey = normalizeKey(newName);
 
-            // Di chuyển dữ liệu gọi số theo tên cũ sang tên mới
-            if (calledNumbers[oldName]) {
-                calledNumbers[newName] = [...calledNumbers[oldName]];
-                delete calledNumbers[oldName];
+        if (newName !== oldName) {
+            // Chuyển dữ liệu từ key cũ sang key mới (nếu khác tên)
+            if (calledNumbers[oldKey]) {
+                calledNumbers[newKey] = [...calledNumbers[oldKey]];
+                delete calledNumbers[oldKey];
             }
-            if (calledHistory[oldName]) {
-                calledHistory[newName] = [...calledHistory[oldName]];
-                delete calledHistory[oldName];
+            if (calledHistory[oldKey]) {
+                calledHistory[newKey] = [...calledHistory[oldKey]];
+                delete calledHistory[oldKey];
             }
         }
 
@@ -254,8 +257,10 @@ function resetIssued() {
         clinics.forEach(c => {
             c.limit = 100;
             c.issued = 0;
-            calledNumbers[c.name] = [];
-            calledHistory[c.name] = [];
+
+            const key = normalizeKey(c.name); // ✅ chuẩn hóa
+            calledNumbers[key] = [];
+            calledHistory[key] = [];
         });
         saveClinics();
         saveCalledNumbers();
@@ -291,13 +296,19 @@ function issueNumber(name, isPriority = false) {
         alert("Hết số hoặc phòng khám không hợp lệ!");
         return;
     }
+
     clinic.issued++;
-    if (!calledNumbers[clinic.name]) calledNumbers[clinic.name] = [];
+    const key = normalizeKey(clinic.name); // ✅ Chuẩn hóa tên
+
+    if (!calledNumbers[key]) calledNumbers[key] = [];
 
     const number = clinic.issued;
-    const displayNumber = isPriority ? `A${number.toString().padStart(2, "0")}` : number;
+    const displayNumber = isPriority
+        ? `A${number.toString().padStart(2, "0")}`
+        : number;
 
-    calledNumbers[clinic.name].push(displayNumber);
+    calledNumbers[key].push(displayNumber); // ✅ Dùng key chuẩn hóa
+
     saveClinics();
     saveCalledNumbers();
     renderPhatSo();
@@ -329,22 +340,23 @@ function handlePrint(clinicName, number, isPriority = false) {
 }
 
 async function callNextNumbers(count) {
-    await new Promise(resolve => loadCalledNumbers(resolve)); // ⬅️ Bổ sung dòng này
+    await new Promise(resolve => loadCalledNumbers(resolve));
 
     const clinicName = selectedClinic;
+    const key = normalizeKey(clinicName); // ✅ chuẩn hóa tên
     const clinic = clinics.find(c => c.name === clinicName);
     if (!clinic) {
         alert("Phòng khám không tồn tại!");
         return;
     }
 
-    const queue = [...calledNumbers[clinicName] || []];
-    const history = new Set(calledHistory[clinicName] || []);
+    const queue = [...calledNumbers[key] || []];         // ✅ dùng key chuẩn hóa
+    const history = new Set(calledHistory[key] || []);   // ✅ dùng key chuẩn hóa
 
     // Lọc các số chưa gọi
     let toCall = queue.filter(n => !history.has(n));
 
-    // 🔁 Ưu tiên gọi số bắt đầu bằng A trước (ưu tiên)
+    // Ưu tiên gọi Axx trước
     toCall.sort((a, b) => {
         const aIsPriority = typeof a === "string" && a.startsWith("A");
         const bIsPriority = typeof b === "string" && b.startsWith("A");
@@ -363,7 +375,7 @@ async function callNextNumbers(count) {
     }
 
     document.getElementById("called-section").style.display = "none";
-    const slug = clinicName.toLowerCase().replace(/\s+/g, "-");
+    const slug = key; // dùng key chuẩn hóa luôn cho tên file âm thanh
 
     for (let i = 0; i < count && i < toCall.length; i++) {
         const number = toCall[i];
@@ -380,7 +392,7 @@ async function callNextNumbers(count) {
         history.add(number);
     }
 
-    calledHistory[clinicName] = Array.from(history);
+    calledHistory[key] = Array.from(history); // ✅ lưu lại bằng key chuẩn hóa
     saveCalledHistory();
     updateCalledList();
 }
@@ -490,7 +502,7 @@ window.onload = function () {
             });
         });
     });
-    // 🟢 Nếu là tài khoản phongkham, thì cập nhật số đã cấp mỗi 5 giây
+    // 🟢 Nếu là tài khoản phongkham, thì cập nhật số đã cấp mỗi 5 phút
     setInterval(() => {
     const user = JSON.parse(localStorage.getItem("currentUser"));
     if (user && user.role === "phongkham") {
@@ -500,7 +512,7 @@ window.onload = function () {
             });
         });
     }
-    }, 300000); // mỗi 5 giây
+    }, 300000); // mỗi 5 phút
 };
 
 function recallNumber(number) {
