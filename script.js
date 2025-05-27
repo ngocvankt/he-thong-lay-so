@@ -54,6 +54,7 @@ function normalizeKey(name) {
 }
 function saveClinics() {
     firebase.database().ref("clinics").set(clinics);
+    firebase.database().ref("lastClinicUpdate").set(Date.now()); // 💡 ghi thời gian cập nhật
 }
 
 function loadClinics(callback) {
@@ -74,6 +75,12 @@ function loadCalledNumbers(callback) {
         const data = snapshot.val();
         if (data) {
             calledNumbers = data;
+
+            // ✅ Cập nhật lại clinic.issued từ dữ liệu Firebase
+            clinics.forEach(clinic => {
+                const key = normalizeKey(clinic.name);
+                clinic.issued = (calledNumbers[key] || []).length;
+            });
         }
         if (typeof callback === "function") callback();
     });
@@ -85,7 +92,8 @@ function loadCalledHistory(callback) {
             calledHistory = data;
         }
         clinics.forEach(c => {
-            if (!Array.isArray(calledHistory[c.name])) calledHistory[c.name] = [];
+            const key = normalizeKey(c.name); // ✅ CHUẨN HÓA ĐÚNG
+            if (!Array.isArray(calledHistory[key])) calledHistory[key] = []; // ✅ SỬA Ở ĐÂY
         });
         if (typeof callback === "function") callback();
     });
@@ -229,8 +237,8 @@ function saveChanges() {
         const oldKey = normalizeKey(oldName);
         const newKey = normalizeKey(newName);
 
+        // Nếu đổi tên phòng khám
         if (newName !== oldName) {
-            // Chuyển dữ liệu từ key cũ sang key mới (nếu khác tên)
             if (calledNumbers[oldKey]) {
                 calledNumbers[newKey] = [...calledNumbers[oldKey]];
                 delete calledNumbers[oldKey];
@@ -241,27 +249,47 @@ function saveChanges() {
             }
         }
 
-        clinics[index].name = newName;
-        clinics[index].limit = newLimit;
+        // Cập nhật lại số lượng đã cấp (issued) nếu cần
+        const clinic = clinics[index];
+        const newIssued = Math.min(newLimit, clinic.issued);
+        const clinicKey = normalizeKey(newName);
+
+        // Cắt số trong calledNumbers nếu vượt quá giới hạn
+        if (calledNumbers[clinicKey] && calledNumbers[clinicKey].length > newIssued) {
+            calledNumbers[clinicKey] = calledNumbers[clinicKey].slice(0, newIssued);
+        }
+
+        clinic.name = newName;
+        clinic.limit = newLimit;
+        clinic.issued = calledNumbers[clinicKey]?.length || 0;  // ✅ Luôn cập nhật đúng
     });
 
+    // ✅ Lưu dữ liệu lên Firebase
     saveClinics();
     saveCalledNumbers();
     saveCalledHistory();
-    alert("Đã lưu thay đổi!");
-    renderAdmin();
-}
 
+    // ✅ Đọc lại clinics sau khi lưu để đảm bảo đồng bộ
+    loadClinics(() => {
+        alert("Đã lưu thay đổi!");
+        renderAdmin();
+    });
+}
 function resetIssued() {
     if (confirm("Bạn có chắc chắn muốn reset toàn bộ?")) {
         clinics.forEach(c => {
             c.limit = 100;
             c.issued = 0;
 
-            const key = normalizeKey(c.name); // ✅ chuẩn hóa
+            const key = normalizeKey(c.name);
             calledNumbers[key] = [];
             calledHistory[key] = [];
+
+            // ✅ XÓA LUÔN KEY KHÔNG CHUẨN NẾU TỒN TẠI
+            delete calledNumbers[c.name];
+            delete calledHistory[c.name];
         });
+
         saveClinics();
         saveCalledNumbers();
         saveCalledHistory();
@@ -270,8 +298,9 @@ function resetIssued() {
     }
 }
 
-function renderPhatSo() {
-    loadCalledNumbers();
+async function renderPhatSo() {
+    await new Promise(resolve => loadCalledNumbers(resolve)); // ✅ Đợi dữ liệu load xong
+
     const table = document.getElementById("phatso-list");
     table.innerHTML = "";
     clinics.forEach(clinic => {
@@ -343,20 +372,20 @@ async function callNextNumbers(count) {
     await new Promise(resolve => loadCalledNumbers(resolve));
 
     const clinicName = selectedClinic;
-    const key = normalizeKey(clinicName); // ✅ chuẩn hóa tên
+    const key = normalizeKey(clinicName); // ✅ key cho dữ liệu
+    const slug = clinicName.toLowerCase().replace(/\s+/g, "-"); // ✅ slug cho âm thanh
+
     const clinic = clinics.find(c => c.name === clinicName);
     if (!clinic) {
         alert("Phòng khám không tồn tại!");
         return;
     }
 
-    const queue = [...calledNumbers[key] || []];         // ✅ dùng key chuẩn hóa
-    const history = new Set(calledHistory[key] || []);   // ✅ dùng key chuẩn hóa
+    const queue = [...calledNumbers[key] || []];
+    const history = new Set(calledHistory[key] || []);
 
-    // Lọc các số chưa gọi
     let toCall = queue.filter(n => !history.has(n));
 
-    // Ưu tiên gọi Axx trước
     toCall.sort((a, b) => {
         const aIsPriority = typeof a === "string" && a.startsWith("A");
         const bIsPriority = typeof b === "string" && b.startsWith("A");
@@ -375,7 +404,6 @@ async function callNextNumbers(count) {
     }
 
     document.getElementById("called-section").style.display = "none";
-    const slug = key; // dùng key chuẩn hóa luôn cho tên file âm thanh
 
     for (let i = 0; i < count && i < toCall.length; i++) {
         const number = toCall[i];
@@ -392,7 +420,7 @@ async function callNextNumbers(count) {
         history.add(number);
     }
 
-    calledHistory[key] = Array.from(history); // ✅ lưu lại bằng key chuẩn hóa
+    calledHistory[key] = Array.from(history);
     saveCalledHistory();
     updateCalledList();
 }
@@ -425,7 +453,13 @@ function confirmClinic() {
     if (statsBox) statsBox.style.display = "flex";
 
     localStorage.setItem("selectedClinic", selectedClinic);
-    updateCalledList();
+    loadClinics(() => {
+        loadCalledNumbers(() => {
+            loadCalledHistory(() => {
+                updateCalledList(); // đảm bảo load lại đúng dữ liệu sau reset
+            });
+        });
+    });
 }
 
 
@@ -462,17 +496,22 @@ function updateCalledList() {
     const container = document.getElementById("called-list");
     const section = document.getElementById("called-section");
     const statsBox = document.getElementById("phongkham-stats");
-  
-    const fullHistory = calledHistory[selectedClinic] || [];
-    const lastCalled = fullHistory.length > 0 ? fullHistory[fullHistory.length - 1] : "-";
+
+    const key = normalizeKey(selectedClinic); // ✅ CHUẨN HÓA TÊN
+    const issuedList = calledNumbers[key] || [];
+    const historyList = calledHistory[key] || [];
+
+    const totalIssued = issuedList.length;
+    const remaining = Math.max(0, totalIssued - historyList.length); // ✅ CHỈNH Ở ĐÂY
+    const lastCalled = historyList.length > 0 ? historyList[historyList.length - 1] : "-";
 
     // ✅ Luôn hiện thống kê
     statsBox.style.display = "flex";
 
     // ✅ Hiện danh sách nếu có ít nhất 1 số đã gọi
-    if (fullHistory.length > 0) {
+    if (historyList.length > 0) {
         section.style.display = "block";
-        container.innerHTML = fullHistory.map(n =>
+        container.innerHTML = historyList.map(n =>
             `<button onclick="recallNumber('${n}')">Số ${n}</button>`
         ).join("");
     } else {
@@ -480,10 +519,6 @@ function updateCalledList() {
         container.innerHTML = "";
     }
 
-    const clinic = clinics.find(c => c.name === selectedClinic);
-    const totalIssued = clinic ? clinic.issued : 0;
-    const remaining = clinic ? (clinic.issued - fullHistory.length) : 0;
-  
     document.getElementById("total-issued").innerText = totalIssued;
     document.getElementById("remaining").innerText = remaining;
     document.getElementById("last-called").innerText = lastCalled;
@@ -491,28 +526,73 @@ function updateCalledList() {
   
 
 window.onload = function () {
-    loadClinics(() => {
-        loadCalledNumbers(() => {
-            loadCalledHistory(() => {
-                renderClinicSelect();
-                setTimeout(() => {
-                    const user = JSON.parse(localStorage.getItem("currentUser"));
-                    if (user) showDashboard(user);
-                }, 10); // trì hoãn nhẹ để DOM render xong
-            });
-        });
-    });
-    // 🟢 Nếu là tài khoản phongkham, thì cập nhật số đã cấp mỗi 5 phút
-    setInterval(() => {
     const user = JSON.parse(localStorage.getItem("currentUser"));
-    if (user && user.role === "phongkham") {
-        loadCalledNumbers(() => {
-            loadCalledHistory(() => {
-                updateCalledList(); // ✅ Cập nhật đúng
+
+    // Nếu chưa đăng nhập thì chỉ render select
+    if (!user) {
+        loadClinics(() => {
+            renderClinicSelect();
+        });
+        return;
+    }
+
+    // Nếu là ADMIN – được phép cập nhật và lưu clinics
+    if (user.role === "admin") {
+        loadClinics(() => {
+            // ⏱️ Ghi lại thời gian cập nhật ban đầu
+    firebase.database().ref("lastClinicUpdate").once("value").then(snapshot => {
+        localStorage.setItem("lastClinicUpdate", snapshot.val() || Date.now());
+    });
+            loadCalledNumbers(() => {
+                loadCalledHistory(() => {
+                    renderClinicSelect();
+                    showDashboard(user);
+                });
             });
         });
+    } else {
+        // Nếu là PHÁT SỐ hoặc PHÒNG KHÁM – chỉ đọc dữ liệu
+        loadClinics(() => {
+            firebase.database().ref("lastClinicUpdate").once("value").then(snapshot => {
+        localStorage.setItem("lastClinicUpdate", snapshot.val() || Date.now());
+    });
+            loadCalledNumbers(() => {
+                loadCalledHistory(() => {
+                    renderClinicSelect();
+                    showDashboard(user);
+                });
+            });
+        });
+
+        // 🔄 Tự động đồng bộ dữ liệu clinic mỗi 3 phút
+        setInterval(() => {
+            loadClinics(); // chỉ đọc lại clinic, không ảnh hưởng issued
+        }, 180000); // 3 phút
     }
+
+    // 🔁 Cập nhật số đã gọi riêng cho tài khoản phòng khám
+    setInterval(() => {
+        const user = JSON.parse(localStorage.getItem("currentUser"));
+        if (user && user.role === "phongkham") {
+            loadCalledNumbers(() => {
+                loadCalledHistory(() => {
+                    updateCalledList();
+                });
+            });
+        }
     }, 300000); // mỗi 5 phút
+    if (user.role === "phatso") {
+    setInterval(() => {
+        firebase.database().ref("lastClinicUpdate").once("value").then(snapshot => {
+            const newTimestamp = snapshot.val();
+            const oldTimestamp = localStorage.getItem("lastClinicUpdate") || 0;
+            if (newTimestamp > oldTimestamp) {
+                localStorage.setItem("lastClinicUpdate", newTimestamp);
+                loadClinics(renderPhatSo); // 🔁 tự động reload bảng phát số
+            }
+        });
+    }, 100000); // kiểm tra mỗi 100 giây
+}
 };
 
 function recallNumber(number) {
@@ -584,4 +664,12 @@ function switchClinic() {
   firebase.database().ref("highlightHTML").set(content);
 
   alert("Đã lưu nội dung dịch vụ nổi bật!");
+}
+function autoSyncClinicsForNonAdmin() {
+    setInterval(() => {
+        const user = JSON.parse(localStorage.getItem("currentUser"));
+        if (user && user.role !== "admin") {
+            loadClinics();
+        }
+    }, 180000); // 3 phút
 }
