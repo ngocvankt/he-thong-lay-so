@@ -105,15 +105,33 @@ function saveCalledHistory() {
 
 
 function login() {
-    const id = document.getElementById("username").value.trim();
-    const pw = document.getElementById("password").value.trim();
-    const user = users.find(u => u.id === id && u.password === pw);
-    if (user) {
-        localStorage.setItem("currentUser", JSON.stringify(user));
-        location.reload();
-    } else {
-        alert("Sai ID hoặc mật khẩu!");
+  const id = document.getElementById("username").value.trim();
+  const pw = document.getElementById("password").value.trim();
+  const email = `${id}@sokhambenh.vercel.app`; // Tự động tạo email từ ID
+
+  firebase.auth().signInWithEmailAndPassword(email, pw)
+    .then((userCredential) => {
+      const user = userCredential.user;
+      loadUserRole(user.email); // Gọi hàm lấy role từ Realtime DB
+    })
+    .catch((error) => {
+      alert("Sai ID hoặc mật khẩu!");
+      console.error("Login failed:", error.message);
+    });
+}
+function loadUserRole(email) {
+  const safeEmail = email.replace(/\./g, ','); // Firebase không cho key chứa dấu chấm
+  firebase.database().ref("userRoles/" + safeEmail).once("value").then(snapshot => {
+    const role = snapshot.val();
+    if (!role) {
+      alert("Tài khoản này chưa được cấp quyền!");
+      return;
     }
+
+    const user = { email, role };
+    localStorage.setItem("currentUser", JSON.stringify(user));
+    location.reload(); // Tải lại để hiện đúng giao diện theo vai trò
+  });
 }
 
 function logout() {
@@ -303,6 +321,18 @@ async function renderPhatSo() {
 
     const table = document.getElementById("phatso-list");
     table.innerHTML = "";
+// 👉 Tính tổng số đã cấp từ tất cả phòng khám
+const totalIssued = clinics.reduce((sum, clinic) => sum + (clinic.issued || 0), 0);
+
+// 👉 Xoá dòng tổng cũ nếu tồn tại
+const oldTotal = document.getElementById("total-issued-count");
+if (oldTotal) oldTotal.remove();
+
+// 👉 Tạo dòng mới hiển thị tổng
+const totalDiv = document.createElement("div");
+totalDiv.id = "total-issued-count";
+totalDiv.innerHTML = `<h3 style="text-align:center; color:#007bff;">🔢 Tổng số đã cấp: ${totalIssued} lượt</h3>`;
+table.parentNode.insertBefore(totalDiv, table);
     clinics.forEach(clinic => {
         const row = document.createElement("tr");
         row.innerHTML = `
