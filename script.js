@@ -302,10 +302,6 @@ function resetIssued() {
             const key = normalizeKey(c.name);
             calledNumbers[key] = [];
             calledHistory[key] = [];
-
-            // ✅ XÓA LUÔN KEY KHÔNG CHUẨN NẾU TỒN TẠI
-            delete calledNumbers[c.name];
-            delete calledHistory[c.name];
         });
 
         saveClinics();
