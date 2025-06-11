@@ -307,6 +307,7 @@ function resetIssued() {
         saveClinics();
         saveCalledNumbers();
         saveCalledHistory();
+        firebase.database().ref("lastClinicUpdate").set(Date.now());
         alert("Đã reset thành công!");
         renderAdmin();
     }
