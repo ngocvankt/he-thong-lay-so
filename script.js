@@ -304,12 +304,20 @@ function resetIssued() {
             calledHistory[key] = [];
         });
 
+        // Lưu dữ liệu mới lên Firebase
         saveClinics();
         saveCalledNumbers();
         saveCalledHistory();
+
+        // Ghi lại thời gian cập nhật
         firebase.database().ref("lastClinicUpdate").set(Date.now());
-        alert("Đã reset thành công!");
-        renderAdmin();
+
+        // Xoá localStorage nếu có dữ liệu cũ
+        localStorage.removeItem("selectedClinic");
+
+        // Tải lại trang sau reset để đảm bảo đồng bộ
+        alert("Đã reset thành công! Trang sẽ được làm mới.");
+        location.reload(); // 👉 Thêm dòng này để làm mới toàn bộ giao diện
     }
 }
 
