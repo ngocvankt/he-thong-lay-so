@@ -301,18 +301,23 @@ function saveChanges() {
         }
 
         // Cập nhật lại số lượng đã cấp (issued) nếu cần
-        const clinic = clinics[index];
-        const newIssued = Math.min(newLimit, clinic.issued);
-        const clinicKey = normalizeKey(newName);
+const clinic = clinics[index];
+const clinicKey = normalizeKey(newName);
 
-        // Cắt số trong calledNumbers nếu vượt quá giới hạn
-        if (calledNumbers[clinicKey] && calledNumbers[clinicKey].length > newIssued) {
-            calledNumbers[clinicKey] = calledNumbers[clinicKey].slice(0, newIssued);
-        }
+// Đảm bảo key tồn tại
+if (!calledNumbers[clinicKey]) {
+    calledNumbers[clinicKey] = [];
+}
 
-        clinic.name = newName;
-        clinic.limit = newLimit;
-        clinic.issued = calledNumbers[clinicKey]?.length || 0;  // ✅ Luôn cập nhật đúng
+// Cắt số trong calledNumbers nếu vượt quá giới hạn
+if (calledNumbers[clinicKey].length > newLimit) {
+    calledNumbers[clinicKey] = calledNumbers[clinicKey].slice(0, newLimit);
+}
+
+clinic.name = newName;
+clinic.limit = newLimit;
+clinic.issued = calledNumbers[clinicKey].length;
+
     });
 
     // ✅ Lưu dữ liệu lên Firebase
