@@ -386,8 +386,9 @@ table.parentNode.insertBefore(totalDiv, table);
     });
 }
 
-function issueNumber(name, isPriority = false) {
-    loadCalledNumbers();
+async function issueNumber(name, isPriority = false) {
+    await loadCalledNumbers(); // Đợi load xong để đảm bảo dữ liệu mới nhất
+
     const clinic = clinics.find(c => c.name === name);
     if (!clinic || clinic.issued >= clinic.limit) {
         alert("Hết số hoặc phòng khám không hợp lệ!");
@@ -395,7 +396,7 @@ function issueNumber(name, isPriority = false) {
     }
 
     clinic.issued++;
-    const key = normalizeKey(clinic.name); // ✅ Chuẩn hóa tên
+    const key = normalizeKey(clinic.name);
 
     if (!calledNumbers[key]) calledNumbers[key] = [];
 
@@ -404,13 +405,14 @@ function issueNumber(name, isPriority = false) {
         ? `A${number.toString().padStart(2, "0")}`
         : number;
 
-    calledNumbers[key].push(displayNumber); // ✅ Dùng key chuẩn hóa
+    calledNumbers[key].push(displayNumber);
 
     saveClinics();
     saveCalledNumbers();
     renderPhatSo();
     handlePrint(clinic.name, displayNumber, isPriority);
 }
+
 
 function handlePrint(clinicName, number, isPriority = false) {
   const now = new Date();
