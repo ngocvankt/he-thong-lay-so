@@ -419,7 +419,7 @@ async function issueNumber(name, isPriority = false) {
   renderPhatSo();
   handlePrint(clinic.name, displayNumber, isPriority);
 }
-
+window.issueNumber = issueNumber;
 function handlePrint(clinicName, number, isPriority = false) {
   const now = new Date();
   document.getElementById("clinicNamePrint").innerText = clinicName;
@@ -705,7 +705,7 @@ function recallNumber(number) {
 
     enqueueAudioSequence(files);
 }
-
+window.issueNumber = issueNumber;
 function switchClinic() {
     // Ẩn giao diện gọi bệnh nhân
     document.getElementById("phongkham-action").style.display = "none";
@@ -764,6 +764,7 @@ function switchClinic() {
 
   alert("Đã lưu nội dung dịch vụ nổi bật!");
 }
+window.issueNumber = issueNumber;
 function autoSyncClinicsForNonAdmin() {
     setInterval(() => {
         const user = JSON.parse(localStorage.getItem("currentUser"));
