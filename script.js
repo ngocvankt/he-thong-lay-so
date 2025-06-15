@@ -387,32 +387,38 @@ table.parentNode.insertBefore(totalDiv, table);
 }
 
 async function issueNumber(name, isPriority = false) {
-    await loadCalledNumbers(); // Đợi load xong để đảm bảo dữ liệu mới nhất
+  await loadCalledNumbers(); // Lấy dữ liệu mới nhất từ Firebase
 
-    const clinic = clinics.find(c => c.name === name);
-    if (!clinic || clinic.issued >= clinic.limit) {
-        alert("Hết số hoặc phòng khám không hợp lệ!");
-        return;
-    }
+  const clinic = clinics.find(c => c.name === name);
+  if (!clinic) {
+    alert("Phòng khám không tồn tại!");
+    return;
+  }
 
-    clinic.issued++;
-    const key = normalizeKey(clinic.name);
+  // ✅ ĐỒNG BỘ lại số đã cấp từ calledNumbers để tránh lệch local
+  const key = normalizeKey(clinic.name);
+  const issuedList = calledNumbers[key] || [];
+  clinic.issued = issuedList.length;
 
-    if (!calledNumbers[key]) calledNumbers[key] = [];
+  if (clinic.issued >= clinic.limit) {
+    alert("Hết số! Phòng khám đã đạt giới hạn.");
+    return;
+  }
 
-    const number = clinic.issued;
-    const displayNumber = isPriority
-        ? `A${number.toString().padStart(2, "0")}`
-        : number;
+  // ✅ Tiếp tục cấp
+  clinic.issued++;
+  const number = clinic.issued;
+  const displayNumber = isPriority
+    ? `A${number.toString().padStart(2, "0")}`
+    : number;
 
-    calledNumbers[key].push(displayNumber);
+  calledNumbers[key].push(displayNumber);
 
-    saveClinics();
-    saveCalledNumbers();
-    renderPhatSo();
-    handlePrint(clinic.name, displayNumber, isPriority);
+  saveClinics();
+  saveCalledNumbers();
+  renderPhatSo();
+  handlePrint(clinic.name, displayNumber, isPriority);
 }
-
 
 function handlePrint(clinicName, number, isPriority = false) {
   const now = new Date();
@@ -683,6 +689,8 @@ function hidePopupUpdate() {
   const popup = document.getElementById("popup-update");
   popup.classList.remove("show");
   clearTimeout(popupTimeout);
+  // 🌀 Reload lại trang sau khi popup bị tắt (dù tự động hay nhấn OK)
+  location.reload();
 }
 
 
