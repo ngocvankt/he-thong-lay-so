@@ -300,32 +300,30 @@ function saveChanges() {
             }
         }
 
-        // Cập nhật lại số lượng đã cấp (issued) nếu cần
-const clinic = clinics[index];
-const clinicKey = normalizeKey(newName);
+        const clinic = clinics[index];
+        const clinicKey = normalizeKey(newName);
 
-// Đảm bảo key tồn tại
-if (!calledNumbers[clinicKey]) {
-    calledNumbers[clinicKey] = [];
-}
+        // Đảm bảo key tồn tại
+        if (!Array.isArray(calledNumbers[clinicKey])) {
+            calledNumbers[clinicKey] = [];
+        }
 
-// Cắt số trong calledNumbers nếu vượt quá giới hạn
-if (calledNumbers[clinicKey].length > newLimit) {
-    calledNumbers[clinicKey] = calledNumbers[clinicKey].slice(0, newLimit);
-}
+        // Cắt danh sách số nếu vượt quá giới hạn mới
+        if (calledNumbers[clinicKey].length > newLimit) {
+            calledNumbers[clinicKey] = calledNumbers[clinicKey].slice(0, newLimit);
+        }
 
-clinic.name = newName;
-clinic.limit = newLimit;
-clinic.issued = calledNumbers[clinicKey].length;
-
+        // Cập nhật lại clinic
+        clinic.name = newName;
+        clinic.limit = newLimit;
+        clinic.issued = Math.min(calledNumbers[clinicKey].length, newLimit); // ✅ QUAN TRỌNG
     });
 
-    // ✅ Lưu dữ liệu lên Firebase
+    // ✅ Lưu dữ liệu đồng bộ
     saveClinics();
     saveCalledNumbers();
     saveCalledHistory();
 
-    // ✅ Đọc lại clinics sau khi lưu để đảm bảo đồng bộ
     loadClinics(() => {
         alert("Đã lưu thay đổi!");
         renderAdmin();
