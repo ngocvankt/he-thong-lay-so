@@ -412,7 +412,10 @@ async function issueNumber(name, isPriority = false) {
     ? `A${number.toString().padStart(2, "0")}`
     : number;
 
-  calledNumbers[key].push(displayNumber);
+  if (!Array.isArray(calledNumbers[key])) {
+  calledNumbers[key] = [];
+}
+calledNumbers[key].push(displayNumber);
 
   saveClinics();
   saveCalledNumbers();
