@@ -228,6 +228,12 @@
 
   window.addEventListener("load", renderHighlightEditor);
 </script>
+<div id="popup-update" class="hidden fixed bottom-5 right-5 bg-yellow-100 text-yellow-900 border border-yellow-500 rounded-lg p-4 shadow-lg z-50 max-w-xs w-full">
+  <div id="popup-message" class="mb-2">⚠️ Đang tải...</div>
+  <button onclick="hidePopupUpdate()" class="px-3 py-1 bg-yellow-400 hover:bg-yellow-300 text-sm font-semibold rounded">
+    OK
+  </button>
+</div>
 
 </body>
 </html>

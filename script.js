@@ -13,6 +13,39 @@ const firebaseConfig = {
   
   firebase.initializeApp(firebaseConfig);
   let users = [];
+let previousLimitMap = {};
+
+firebase.database().ref("clinics").on("value", snapshot => {
+  const data = snapshot.val();
+  if (!data) return;
+
+  const newClinics = Object.keys(data).map(key => ({
+    id: key,
+    ...data[key]
+  }));
+
+  newClinics.forEach(clinic => {
+    const name = clinic.name;
+    const prevLimit = previousLimitMap[name];
+
+    if (prevLimit !== undefined && prevLimit !== clinic.limit) {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('vi-VN');
+      const dateStr = now.toLocaleDateString('vi-VN');
+      const message = `
+        ⚠️ <b>${name}</b> vừa được admin cập nhật:<br>
+        Giới hạn từ <b>${prevLimit}</b> → <b>${clinic.limit}</b><br>
+        🕒 Lúc: ${timeStr} - ${dateStr}
+      `;
+      showPopupUpdate(message);
+    }
+
+    previousLimitMap[name] = clinic.limit;
+  });
+
+  clinics = newClinics;
+  renderClinicSelect?.(); // gọi lại nếu có
+});
 
 firebase.database().ref("users").once("value")
   .then(snapshot => {
@@ -93,7 +126,7 @@ function loadCalledHistory(callback) {
         }
         clinics.forEach(c => {
             const key = normalizeKey(c.name); // ✅ CHUẨN HÓA ĐÚNG
-            if (!Array.isArray(calledHistory[key])) calledHistory[key] = []; // ✅ SỬA Ở ĐÂY
+            if (!Array.isArray(calledHistory[key])) calledHistory[key] = []; // 
         });
         if (typeof callback === "function") callback();
     });
@@ -629,6 +662,27 @@ window.onload = function () {
     }, 100000); // kiểm tra mỗi 100 giây
 }
 };
+let popupTimeout;
+
+function showPopupUpdate(message) {
+  const popup = document.getElementById("popup-update");
+  const msgDiv = document.getElementById("popup-message");
+
+  msgDiv.innerHTML = message;
+  popup.classList.add("show");
+
+  clearTimeout(popupTimeout);
+  popupTimeout = setTimeout(() => {
+    hidePopupUpdate();
+  }, 10000);
+}
+
+function hidePopupUpdate() {
+  const popup = document.getElementById("popup-update");
+  popup.classList.remove("show");
+  clearTimeout(popupTimeout);
+}
+
 
 function recallNumber(number) {
     const slug = selectedClinic.toLowerCase().replace(/\s+/g, "-");

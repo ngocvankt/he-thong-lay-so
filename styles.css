@@ -300,40 +300,49 @@ button:hover {
   padding: 0;
 }
 
-.icon-btn:hover {
-  background-color: #0056b3;
-}
-.icon-btn svg {
-  transition: transform 0.2s ease;
+.icon-btn {
+  background-color: #f87171;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  font-size: 16px;
+  line-height: 30px;
+  text-align: center;
+  cursor: pointer;
 }
 
-.icon-btn:hover svg {
-  transform: scale(1.15);
+.icon-btn:hover {
+  background-color: #dc2626;
 }
+
 /* Tên phòng khám trong bảng */
 .admin-input-text {
-  width: 90%;
+  width: 100%;
   padding: 6px 10px;
   font-size: 14px;
   border: 1px solid #ccc;
   border-radius: 6px;
-  box-sizing: border-box;
 }
 
-/* Ô số lượt */
 .admin-input-number {
-  width: 70px;
+  width: 80px;
+  text-align: center;
   padding: 6px;
   font-size: 14px;
   border: 1px solid #ccc;
   border-radius: 6px;
-  box-sizing: border-box;
-  text-align: center;
 }
+
 /* Giảm chiều cao dòng */
 #admin-clinic-list tbody tr {
-  height: 12px; /* bạn có thể giảm nữa nếu muốn nhỏ hơn */
+  height: auto;
+  line-height: 1.4;
+  font-size: 14px;
+  transition: background-color 0.2s ease;
 }
+
 
 /* Màu nền xen kẽ */
 #admin-clinic-list tbody tr:nth-child(even) {
@@ -557,4 +566,87 @@ table input[type="number"] {
 #highlight-service {
   font-size: 14px;
   line-height: 1.5;
+}
+#popup-update {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  max-width: 320px;
+  width: 100%;
+  background-color: #fef3c7; /* vàng nhạt */
+  color: #92400e;             /* chữ nâu cam */
+  border: 1px solid #facc15;  /* viền vàng đậm */
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  z-index: 9999;
+  display: none; /* ẩn mặc định */
+}
+
+#popup-update.show {
+  display: block;
+}
+
+#popup-update button {
+  margin-top: 8px;
+  padding: 6px 12px;
+  font-size: 14px;
+  font-weight: bold;
+  color: #78350f;
+  background-color: #fde68a;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+#popup-update button:hover {
+  background-color: #fcd34d;
+}
+/* Responsive bảng khi trên mobile */
+@media (max-width: 768px) {
+  .container {
+    width: 100%;
+    padding: 10px;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+    width: 100%;
+  }
+
+  table thead,
+  table tbody,
+  table th,
+  table td,
+  table tr {
+    display: block;
+  }
+
+  table tr {
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 10px;
+  }
+
+  table td {
+    text-align: left;
+    padding-left: 40%;
+    position: relative;
+  }
+
+  table td::before {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 35%;
+    white-space: nowrap;
+    font-weight: bold;
+    color: #333;
+  }
+
+  /* Gắn tiêu đề giả cho từng cột (bạn có thể sửa nội dung ở đây) */
+  table td:nth-child(1)::before { content: "🗑 Xoá"; }
+  table td:nth-child(2)::before { content: "Tên phòng khám"; }
+  table td:nth-child(3)::before { content: "Giới hạn"; }
+  table td:nth-child(4)::before { content: "Đã cấp"; }
 }
