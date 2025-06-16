@@ -452,7 +452,7 @@ function handlePrint(clinicName, number, isPriority = false) {
 
 async function callNextNumbers(count) {
     await new Promise(resolve => loadCalledNumbers(resolve));
-
+    await new Promise(resolve => loadCalledHistory(resolve));
     const clinicName = selectedClinic;
     const key = normalizeKey(clinicName); // ✅ key cho dữ liệu
     const slug = clinicName.toLowerCase().replace(/\s+/g, "-"); // ✅ slug cho âm thanh
