@@ -212,27 +212,6 @@ button:hover {
   }
 }
 
-/* Giao diện danh sách số đã gọi (giao diện dạng lưới) */
-.called-grid {
-  display: grid;
-  grid-template-columns: repeat(10, 1fr);
-  gap: 6px;
-  margin-top: 10px;
-}
-
-.called-grid button {
-  padding: 6px;
-  border: 1px solid #ccc;
-  background: white;
-  color: black;
-  border-radius: 6px;
-  font-weight: bold;
-  cursor: pointer;
-}
-
-.called-grid button:hover {
-  background-color: #cce5ff;
-}
 
 .next-btn {
   background-color: #007bff;
@@ -258,6 +237,9 @@ button:hover {
   font-size: 20px;
   font-weight: bold;
   border-radius: 6px;
+  text-align: center;        
+  margin: 0 auto 24px auto;  
+  width: fit-content;        
 }
 
 .phongkham-stats-box {
@@ -602,3 +584,30 @@ table input[type="number"] {
 #popup-update button:hover {
   background-color: #fcd34d;
 }
+#called-list {
+  padding: 0;
+  margin: 0 auto;
+  list-style: none;
+  max-width: 260px;
+}
+.called-item {
+  padding: 10px 18px;
+  margin-bottom: 10px;
+  background: #f9fbfd;
+  border: 1.5px solid #e0eaf7;
+  border-radius: 8px;
+  font-size: 17px;
+  font-weight: 500;
+  color: #333;
+  cursor: pointer;
+  transition: background 0.16s, color 0.16s, border-color 0.16s, box-shadow 0.16s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  text-align: left;
+}
+.called-item:hover {
+  background: #e6f1ff;
+  color: #0056b3;
+  border-color: #007bff;
+  box-shadow: 0 2px 6px rgba(0,123,255,0.13);
+}
+

@@ -190,7 +190,7 @@ function showDashboard(user) {
         document.getElementById("clinic-name-display").style.display = "block";
         document.getElementById("clinic-select-container").style.display = "none";
         document.getElementById("phongkham-action").style.display = "block";
-        document.getElementById("main-heading").innerText = "GỌI BỆNH NHÂN VÀO PHÒNG KHÁM!";
+        document.getElementById("main-heading").style.display = "none";
         document.getElementById("top-right-buttons").style.display = "block";
         setTimeout(updateCalledList, 100);
     } else {
@@ -531,7 +531,7 @@ function confirmClinic() {
     if (selectContainer) selectContainer.style.display = "none";
     if (actionContainer) actionContainer.style.display = "block";
     if (topButtons) topButtons.style.display = "block";
-    if (heading) heading.innerText = "GỌI BỆNH NHÂN VÀO PHÒNG KHÁM!";
+    if (heading) heading.style.display = "none";
     if (statsBox) statsBox.style.display = "flex";
 
     localStorage.setItem("selectedClinic", selectedClinic);
@@ -575,35 +575,38 @@ async function playAudioQueue() {
 }
 
 function updateCalledList() {
-    const container = document.getElementById("called-list");
+    const select = document.getElementById("called-select");
     const section = document.getElementById("called-section");
     const statsBox = document.getElementById("phongkham-stats");
 
-    const key = normalizeKey(selectedClinic); // ✅ CHUẨN HÓA TÊN
+    const key = normalizeKey(selectedClinic);
     const issuedList = calledNumbers[key] || [];
     const historyList = calledHistory[key] || [];
 
     const totalIssued = issuedList.length;
-    const remaining = Math.max(0, totalIssued - historyList.length); // ✅ CHỈNH Ở ĐÂY
+    const remaining = Math.max(0, totalIssued - historyList.length);
     const lastCalled = historyList.length > 0 ? historyList[historyList.length - 1] : "-";
 
-    // ✅ Luôn hiện thống kê
     statsBox.style.display = "flex";
 
-    // ✅ Hiện danh sách nếu có ít nhất 1 số đã gọi
+    // Show dropdown nếu có số đã gọi
     if (historyList.length > 0) {
         section.style.display = "block";
-        container.innerHTML = historyList.map(n =>
-            `<button onclick="recallNumber('${n}')">Số ${n}</button>`
-        ).join("");
+        select.innerHTML = `<option value="">-- Chọn số đã gọi --</option>` +
+            historyList.map(n => `<option value="${n}">Số ${n}</option>`).join("");
     } else {
         section.style.display = "none";
-        container.innerHTML = "";
+        select.innerHTML = `<option value="">-- Chọn số đã gọi --</option>`;
     }
 
     document.getElementById("total-issued").innerText = totalIssued;
     document.getElementById("remaining").innerText = remaining;
     document.getElementById("last-called").innerText = lastCalled;
+    document.getElementById("called-select").onchange = function() {
+    const value = this.value;
+    if (value) recallNumber(value);
+    this.selectedIndex = 0; // Quay lại trạng thái "-- Chọn số đã gọi --"
+};
 }
   
 
@@ -712,7 +715,7 @@ function recallNumber(number) {
     enqueueAudioSequence(files);
 }
 window.issueNumber = issueNumber;
-function switchClinic() {
+    function switchClinic() {
     // Ẩn giao diện gọi bệnh nhân
     document.getElementById("phongkham-action").style.display = "none";
   
@@ -722,15 +725,16 @@ function switchClinic() {
     // Ẩn nút Đổi phòng khám + Đăng xuất
     document.getElementById("top-right-buttons").style.display = "none";
   
-    // Đổi lại tiêu đề
+    // Đổi lại tiêu đề và hiện lại
     document.getElementById("main-heading").innerText = "VUI LÒNG THIẾT LẬP PHÒNG KHÁM!";
+    document.getElementById("main-heading").style.display = "block";
   
     // Ẩn tên phòng khám ở tiêu đề
     document.getElementById("clinic-name-display").style.display = "none";
   
     // Xoá lựa chọn phòng khám đã lưu
     localStorage.removeItem("selectedClinic");
-  }
+    }
   function loadHighlight() {
     const saved = localStorage.getItem("highlightHTML");
     if (saved) {
@@ -743,6 +747,7 @@ function switchClinic() {
     document.getElementById("phongkham-action").style.display = "none";
     document.getElementById("top-right-buttons").style.display = "none";
     document.getElementById("main-heading").innerText = "VUI LÒNG THIẾT LẬP PHÒNG KHÁM!";
+    document.getElementById("main-heading").style.display = "block";
     document.getElementById("clinic-name-display").style.display = "none";
   }
   function renderClinicSelect() {
