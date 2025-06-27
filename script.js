@@ -71,7 +71,7 @@ let clinics = [
     { name: "Phòng khám Nội 5", limit: 100, issued: 0 },
     { name: "Phòng khám Nhi 1", limit: 100, issued: 0 },
     { name: "Phòng khám Nhi 2", limit: 100, issued: 0 },
-    { name: "Phòng khám Tai Mũi Họng", limit: 100, issued: 0 },
+    { name: "Phòng khám Tai Mũi Họng", limit: 0, issued: 0 },
     { name: "Phòng khám Mắt", limit: 100, issued: 0 },
     { name: "Phòng khám Sản khoa", limit: 100, issued: 0 },
     { name: "Phòng khám Ngoại Tổng hợp", limit: 100, issued: 0 }
