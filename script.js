@@ -85,6 +85,9 @@ let isPlayingAudio = false;  // Trạng thái đang phát hay không
 function normalizeKey(name) {
     return name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f\s]/g, "-");
 }
+const effectQueues = {};
+const effectStatus = {}; // { key: true/false }
+const lastDisplayedNumbers = {}; // { key: number }
 function saveClinics() {
     firebase.database().ref("clinics").set(clinics);
     firebase.database().ref("lastClinicUpdate").set(Date.now()); // 💡 ghi thời gian cập nhật
@@ -175,6 +178,73 @@ function logout() {
 function showDashboard(user) {
     const loginBox = document.querySelector(".login-box");
     if (loginBox) loginBox.style.display = "none";
+
+    // ==== PHÂN QUYỀN CHO TÀI KHOẢN TIVI (DISPLAY) ====
+if (user.role === "display") {
+  document.querySelectorAll('link[href*="style.css"]').forEach(link => link.remove());
+  document.body.innerHTML = `
+    <div id="header" style="position: relative; min-height: 56px;">
+      <!-- LOGO ĐĂNG XUẤT Ở GÓC TRÁI -->
+      <div style="
+          position: absolute;
+          top: 35px; left: 150px;
+          z-index: 2;
+          display: flex;
+          align-items: center;
+          height: 80px;
+      ">
+<button id="logout-btn"
+    title="Đăng xuất"
+    onclick="logoutDisplay()"
+    style="
+      background: none;
+      border: none;
+      border-radius: 50%;
+      padding: 0;
+      width: 80px;
+      height: 00px;
+      cursor: pointer;
+      box-shadow: 0 1px 4px #007bff28;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+  ">
+  <img src="logott.png"
+      alt="Logo Trung tâm"
+      style="width: 100px; height: 100px; border-radius: 50%;">
+</button>
+      </div>
+      <!-- VÙNG CHỮ CHẠY -->
+      <div class="marquee-container">
+        <span class="marquee">
+          TRUNG TÂM Y TẾ KHU VỰC HÀM THUẬN BẮC | Chúc quý bệnh nhân sức khỏe & hài lòng với dịch vụ!
+        </span>
+      </div>
+    </div>
+    <div id="main-section" style="display:block;">
+      <div id="board"></div>
+    </div>
+  `;
+
+
+        // Hàm đăng xuất dành riêng cho màn hình TIVI (icon)
+        window.logoutDisplay = function () {
+            localStorage.removeItem("currentUser");
+            location.reload();
+        };
+
+        // Load lại file CSS giao diện tivi (nếu có file riêng)
+        const cssLink = document.createElement("link");
+        cssLink.rel = "stylesheet";
+        cssLink.href = "display.css"; // Đổi đúng tên file .css cho hiển thị tivi
+        document.head.appendChild(cssLink);
+
+        // Lắng nghe số gọi mới + nháy hiệu ứng + render
+        listenAndHandleFlash();
+        renderBoardQueueForAllClinics();
+        return; // Dừng lại luôn, không chạy các nhánh phía dưới nữa
+    }
     if (user.role === "admin") {
         document.getElementById("admin-container").style.display = "block";
         renderAdmin();
@@ -199,7 +269,103 @@ function showDashboard(user) {
     document.getElementById("phongkham-container").style.display = "block";
 }
 }
+function renderBoardQueueForAllClinics() {
+    // Đảm bảo mỗi lần gọi, lấy dữ liệu phòng khám cập nhật nhất
+    allClinics = clinics.map(clinic => {
+        const key = normalizeKey(clinic.name);
+        let lastNumber = lastDisplayedNumbers[key] !== undefined ? lastDisplayedNumbers[key] : "...";
+        let flashClass = effectStatus[key] ? "flash" : "";
+        return { key, name: clinic.name, number: lastNumber, flashClass };
+    });
 
+    // Tách làm 2 bảng (2 cột)
+    const n = Math.ceil(allClinics.length / 2);
+    let left = allClinics.slice(0, n);
+    let right = allClinics.slice(n);
+
+    function makeTable(list) {
+        let html = `
+          <table class="display-table">
+            <thead>
+              <tr>
+                <th style="width:70%;">TÊN PHÒNG KHÁM</th>
+                <th style="width:30%;">SỐ ĐÃ GỌI</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+        list.forEach(item => {
+            html += `
+              <tr>
+                <td class="name-cell">${item.name}</td>
+                <td class="number-cell">
+                  <span class="${item.flashClass}">${item.number}</span>
+                </td>
+              </tr>
+            `;
+        });
+        html += `</tbody></table>`;
+        return html;
+    }
+
+    document.getElementById('board').innerHTML = `
+      <div class="split-tables">
+        ${makeTable(left)}
+        ${makeTable(right)}
+      </div>
+    `;
+}
+function listenAndHandleFlash() {
+    firebase.database().ref("calledHistory").on("value", snapshot => {
+        const data = snapshot.val() || {};
+
+        clinics.forEach(clinic => {
+            const key = normalizeKey(clinic.name);
+            const arr = data[key];
+            let lastNumber = Array.isArray(arr) && arr.length > 0 ? arr[arr.length - 1] : "...";
+
+            if (!effectQueues[key]) effectQueues[key] = [];
+            if (!lastDisplayedNumbers[key]) lastDisplayedNumbers[key] = "...";
+
+            // Nếu có số mới, đưa vào queue nháy hiệu ứng
+            if (
+                lastNumber !== "..."
+                && lastNumber !== lastDisplayedNumbers[key]
+                && !effectQueues[key].includes(lastNumber)
+            ) {
+                effectQueues[key].push(lastNumber);
+                if (!effectStatus[key]) {
+                    playNextNumberForAllClinics(key);
+                }
+            }
+        });
+    });
+}
+// ===== Xử lý hiệu ứng nháy queue cho từng phòng khám =====
+function playNextNumberForAllClinics(clinicKey) {
+    if (!effectQueues[clinicKey] || effectQueues[clinicKey].length === 0) {
+        effectStatus[clinicKey] = false;
+        return;
+    }
+    effectStatus[clinicKey] = true;
+    // Lấy số đầu queue để hiển thị
+    lastDisplayedNumbers[clinicKey] = effectQueues[clinicKey][0];
+
+    // Render lại bảng tổng hợp với hiệu ứng flash cho đúng số
+    renderBoardQueueForAllClinics();
+
+    // Sau khi nháy xong (vd: 3.5s), bỏ số khỏi queue, nháy tiếp số sau nếu có
+    setTimeout(() => {
+        effectStatus[clinicKey] = false;
+        renderBoardQueueForAllClinics();
+
+        effectQueues[clinicKey].shift();
+        // Nếu còn số → tiếp tục nháy
+        if (effectQueues[clinicKey].length > 0) {
+            setTimeout(() => playNextNumberForAllClinics(clinicKey), 100);
+        }
+    }, 3500);
+}
 function renderAdmin() {
     const tbody = document.querySelector("#admin-clinic-list tbody");
     tbody.innerHTML = "";
