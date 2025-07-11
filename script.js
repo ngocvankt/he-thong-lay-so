@@ -242,14 +242,9 @@ if (user.role === "display") {
         // Lắng nghe số gọi mới + nháy hiệu ứng + render
         listenAndHandleFlash();
         renderBoardQueueForAllClinics();
-        firebase.database().ref("lastClinicUpdate").on("value", snapshot => {
-         const newTimestamp = snapshot.val();
-         const oldTimestamp = localStorage.getItem("lastClinicUpdate") || 0;
-        if (newTimestamp > oldTimestamp) {
-         localStorage.setItem("lastClinicUpdate", newTimestamp);
-        location.reload(); // Chỉ reload khi có cập nhật từ admin
-        }
-        });
+        setInterval(() => {
+        location.reload();
+        }, 900000);
         return; // Dừng lại luôn, không chạy các nhánh phía dưới nữa
     }
     if (user.role === "admin") {
