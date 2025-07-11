@@ -227,7 +227,6 @@ if (user.role === "display") {
     </div>
   `;
 
-
         // Hàm đăng xuất dành riêng cho màn hình TIVI (icon)
         window.logoutDisplay = function () {
             localStorage.removeItem("currentUser");
@@ -243,6 +242,16 @@ if (user.role === "display") {
         // Lắng nghe số gọi mới + nháy hiệu ứng + render
         listenAndHandleFlash();
         renderBoardQueueForAllClinics();
+          setInterval(() => {
+         firebase.database().ref("lastClinicUpdate").once("value").then(snapshot => {
+         const newTimestamp = snapshot.val();
+         const oldTimestamp = localStorage.getItem("lastClinicUpdate") || 0;
+         if (newTimestamp > oldTimestamp) {
+        localStorage.setItem("lastClinicUpdate", newTimestamp);
+        location.reload(); // Làm mới lại giao diện, tự reset mọi thứ
+      }
+    });
+  }, 100000); // kiểm tra mỗi 100 giây,
         return; // Dừng lại luôn, không chạy các nhánh phía dưới nữa
     }
     if (user.role === "admin") {
