@@ -787,4 +787,47 @@ body {
     margin-bottom: 12px;
   }
 }
+.ticket-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 8px;
+}
+
+.watermark-front {
+  width: 56px;
+  height: 56px;
+  margin-bottom: 2px;
+}
+
+.clinic-title {
+  font-size: 16px;
+  font-weight: bold;
+  margin: 2px 0 4px 0;
+  text-align: center;
+}
+
+.ticket-type {
+  font-size: 24px;
+  color: #000000;
+  font-weight: bold;
+  margin: 2px 0 2px 0;
+  letter-spacing: 2px;
+}
+
+#print-area h1#ticketNumberPrint {
+  font-size: 70px;
+  margin: 3px 0 6px 0;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 5px;
+}
+
+.print-time {
+  font-size: 15px !important;
+  color: #666;
+  margin: 2px 0 0 0;
+  text-align: center;
+}
+
 /* === END DISPLAY CSS === */

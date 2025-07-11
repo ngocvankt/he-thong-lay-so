@@ -597,6 +597,7 @@ window.issueNumber = issueNumber;
 function handlePrint(clinicName, number, isPriority = false) {
   const now = new Date();
   document.getElementById("clinicNamePrint").innerText = clinicName;
+  document.getElementById("ticketTypePrint").innerText = isPriority ? "SỐ ƯU TIÊN" : "SỐ THỨ TỰ";
   const displayNumber = typeof number === "string"
     ? number
     : number.toString().padStart(2, "0");
