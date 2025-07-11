@@ -242,16 +242,14 @@ if (user.role === "display") {
         // Lắng nghe số gọi mới + nháy hiệu ứng + render
         listenAndHandleFlash();
         renderBoardQueueForAllClinics();
-          setInterval(() => {
-         firebase.database().ref("lastClinicUpdate").once("value").then(snapshot => {
+        firebase.database().ref("lastClinicUpdate").on("value", snapshot => {
          const newTimestamp = snapshot.val();
          const oldTimestamp = localStorage.getItem("lastClinicUpdate") || 0;
-         if (newTimestamp > oldTimestamp) {
-        localStorage.setItem("lastClinicUpdate", newTimestamp);
-        location.reload(); // Làm mới lại giao diện, tự reset mọi thứ
-      }
-    });
-  }, 100000); // kiểm tra mỗi 100 giây,
+        if (newTimestamp > oldTimestamp) {
+         localStorage.setItem("lastClinicUpdate", newTimestamp);
+        location.reload(); // Chỉ reload khi có cập nhật từ admin
+        }
+        });
         return; // Dừng lại luôn, không chạy các nhánh phía dưới nữa
     }
     if (user.role === "admin") {
