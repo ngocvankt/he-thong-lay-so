@@ -725,9 +725,11 @@ async function callNextNumbers(count) {
             ? number.slice(1).toString().padStart(2, "0")
             : number.toString().padStart(2, "0");
 
+        const numberAudioCandidates = getNumberAudioCandidates(numOnly);
+
         const files = isPriority
-            ? ["audio/uu-tien.mp3", "audio/a.mp3", `audio/so-${numOnly}.mp3`, clinicAudioCandidates]
-            : ["audio/moi-so.mp3", `audio/so-${numOnly}.mp3`, clinicAudioCandidates];
+            ? ["audio/uu-tien.mp3", "audio/a.mp3", numberAudioCandidates, clinicAudioCandidates]
+            : ["audio/moi-so.mp3", numberAudioCandidates, clinicAudioCandidates];
 
         enqueueAudioSequence(files);
         history.add(number);
@@ -771,6 +773,7 @@ function confirmClinic() {
         loadCalledNumbers(() => {
             loadCalledHistory(() => {
                 updateCalledList(); // đảm bảo load lại đúng dữ liệu sau reset
+                warmupAudioFilesForClinic(selectedClinic);
             });
         });
     });
@@ -782,14 +785,22 @@ function enqueueAudioSequence(files) {
     playAudioQueue();
 }
 
-// ===== TỐI ƯU ÂM THANH KHI CHẠY TRÊN WEB =====
-// Lý do: chạy offline đọc nhanh vì file nằm trên máy; chạy Vercel có thể bị trễ khi browser
-// bắt đầu tải từng file MP3. Web Audio sẽ nạp file vào bộ nhớ rồi xếp lịch phát sát nhau.
+// ===== TỐI ƯU ÂM THANH KHI CHẠY TRÊN WEB - BẢN LOW LATENCY =====
+// Không tăng tốc giọng đọc. Mục tiêu là giảm độ trễ giữa các đoạn: “Mời số” + “số” + “phòng khám”.
+// Điểm sửa chính:
+// 1) Không preload hàng trăm file số cùng lúc trên Vercel, vì việc đó làm nghẽn request và tạo cảm giác chậm.
+// 2) Khi gọi, tải song song đúng các file cần phát.
+// 3) Dùng Web Audio cắt khoảng lặng đầu/cuối theo biên độ thực tế rồi phát nối sát nhau.
 const AUDIO_WEB_ENGINE_ENABLED = window.location.protocol !== "file:" && !!(window.AudioContext || window.webkitAudioContext);
-const AUDIO_TAIL_CUT_SECONDS = 0.12;     // cắt nhẹ khoảng lặng cuối file, không tăng tốc giọng đọc
-const AUDIO_SEQUENCE_START_DELAY = 0.03; // bắt đầu sau 30ms để tránh hụt âm đầu
+const AUDIO_SEQUENCE_START_DELAY = 0.025;   // chờ cực ngắn để tránh hụt âm đầu
+const AUDIO_SILENCE_THRESHOLD = 0.004;      // ngưỡng nhận diện khoảng im lặng trong file
+const AUDIO_TRIM_KEEP_START = 0.015;        // giữ lại một chút đầu file để không cắt mất phụ âm
+const AUDIO_TRIM_KEEP_END = 0.025;          // giữ lại một chút cuối file cho tự nhiên
+const AUDIO_JOIN_GAP_SECONDS = 0.00;        // 0 = nối sát; có thể đổi 0.03 nếu muốn nghỉ rõ hơn
+const AUDIO_FALLBACK_GAP_MS = 0;            // fallback HTML Audio không thêm khoảng nghỉ nhân tạo
 const audioBufferCache = new Map();
 const audioBufferPromiseCache = new Map();
+const audioTrimCache = new WeakMap();
 let callAudioContext = null;
 let audioWarmupStarted = false;
 
@@ -814,6 +825,18 @@ function flattenAudioItems(items) {
     return [...new Set(out)];
 }
 
+function getNumberAudioCandidates(number) {
+    const raw = typeof number === "string" ? number.replace(/^A/i, "") : String(number);
+    const n = parseInt(raw, 10);
+    if (!Number.isFinite(n)) return [];
+
+    const padded = String(n).padStart(2, "0");
+    return [...new Set([
+        `audio/so-${padded}.mp3`,
+        `audio/so-${n}.mp3`
+    ])];
+}
+
 async function loadAudioBuffer(file) {
     const ctx = getCallAudioContext();
     if (!ctx) throw new Error("Web Audio không khả dụng");
@@ -821,7 +844,7 @@ async function loadAudioBuffer(file) {
     if (audioBufferCache.has(file)) return audioBufferCache.get(file);
     if (audioBufferPromiseCache.has(file)) return audioBufferPromiseCache.get(file);
 
-    const promise = fetch(file, { cache: "force-cache" })
+    const promise = fetch(file, { cache: "default" })
         .then(response => {
             if (!response.ok) throw new Error(`Không tải được ${file}`);
             return response.arrayBuffer();
@@ -839,6 +862,41 @@ async function loadAudioBuffer(file) {
 
     audioBufferPromiseCache.set(file, promise);
     return promise;
+}
+
+function getTrimPoints(buffer) {
+    if (audioTrimCache.has(buffer)) return audioTrimCache.get(buffer);
+
+    const sampleRate = buffer.sampleRate || 44100;
+    const length = buffer.length || 0;
+    let first = 0;
+    let last = length - 1;
+
+    const isAudibleAt = (index) => {
+        for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+            const data = buffer.getChannelData(ch);
+            if (Math.abs(data[index] || 0) >= AUDIO_SILENCE_THRESHOLD) return true;
+        }
+        return false;
+    };
+
+    while (first < length && !isAudibleAt(first)) first++;
+    while (last > first && !isAudibleAt(last)) last--;
+
+    if (first >= length || last <= first) {
+        const fallback = { offset: 0, duration: Math.max(0.05, buffer.duration || 0.05) };
+        audioTrimCache.set(buffer, fallback);
+        return fallback;
+    }
+
+    first = Math.max(0, first - Math.floor(AUDIO_TRIM_KEEP_START * sampleRate));
+    last = Math.min(length - 1, last + Math.floor(AUDIO_TRIM_KEEP_END * sampleRate));
+
+    const offset = first / sampleRate;
+    const duration = Math.max(0.08, (last - first + 1) / sampleRate);
+    const result = { offset, duration };
+    audioTrimCache.set(buffer, result);
+    return result;
 }
 
 async function resolveAudioItem(item) {
@@ -860,69 +918,66 @@ async function playAudioSequenceWithWebAudio(files) {
     if (!ctx) return false;
     if (ctx.state === "suspended") await ctx.resume();
 
-    const resolvedItems = [];
-    for (const item of files) {
-        const resolved = await resolveAudioItem(item);
-        if (resolved) resolvedItems.push(resolved);
-    }
+    // Tải song song các đoạn cần gọi. Trên Vercel, đây là phần giảm trễ rõ nhất.
+    const resolvedItems = (await Promise.all(files.map(item => resolveAudioItem(item)))).filter(Boolean);
 
     if (resolvedItems.length === 0) return false;
 
-    let startTime = ctx.currentTime + AUDIO_SEQUENCE_START_DELAY;
-    let cursor = startTime;
+    let cursor = ctx.currentTime + AUDIO_SEQUENCE_START_DELAY;
     const sources = [];
 
     resolvedItems.forEach(({ buffer }) => {
+        const trim = getTrimPoints(buffer);
         const source = ctx.createBufferSource();
         source.buffer = buffer;
+        source.playbackRate.value = CALL_AUDIO_SPEED; // giữ 1.0, không làm giọng đọc nhanh hơn
         source.connect(ctx.destination);
-        source.start(cursor);
+        source.start(cursor, trim.offset, trim.duration);
         sources.push(source);
-
-        // Không tăng playbackRate. Chỉ nối các đoạn sát hơn bằng cách cắt nhẹ đuôi im lặng.
-        const effectiveDuration = Math.max(0.22, buffer.duration - AUDIO_TAIL_CUT_SECONDS);
-        cursor += effectiveDuration;
+        cursor += (trim.duration / CALL_AUDIO_SPEED) + AUDIO_JOIN_GAP_SECONDS;
     });
 
     await new Promise(resolve => {
-        const waitMs = Math.max(120, (cursor - ctx.currentTime) * 1000 + 80);
+        const waitMs = Math.max(100, (cursor - ctx.currentTime) * 1000 + 50);
         setTimeout(resolve, waitMs);
     });
 
     return true;
 }
 
-function getLikelyAudioFilesForPreload() {
-    const files = new Set(["audio/moi-so.mp3", "audio/uu-tien.mp3", "audio/a.mp3"]);
+function getNextNumbersForPreload(clinicName, maxCount = 8) {
+    const key = normalizeKey(clinicName || selectedClinic || "");
+    if (!key) return [];
 
-    for (let i = 1; i <= 100; i++) {
-        files.add(`audio/so-${i}.mp3`);
-        files.add(`audio/so-${String(i).padStart(2, "0")}.mp3`);
-    }
+    const issuedList = calledNumbers[key] || [];
+    const historySet = new Set(calledHistory[key] || []);
+    const waiting = issuedList.filter(n => !historySet.has(n));
 
-    clinics.forEach(clinic => {
-        getClinicAudioCandidates(clinic.name).forEach(file => files.add(file));
+    waiting.sort((a, b) => {
+        const aIsPriority = typeof a === "string" && a.startsWith("A");
+        const bIsPriority = typeof b === "string" && b.startsWith("A");
+        if (aIsPriority && !bIsPriority) return -1;
+        if (!aIsPriority && bIsPriority) return 1;
+        const aNum = parseInt(typeof a === "string" ? a.replace("A", "") : a, 10);
+        const bNum = parseInt(typeof b === "string" ? b.replace("A", "") : b, 10);
+        return aNum - bNum;
     });
 
-    if (selectedClinic) {
-        getClinicAudioCandidates(selectedClinic).forEach(file => files.add(file));
-    }
-
-    return [...files];
+    return waiting.slice(0, maxCount);
 }
 
 function warmupAudioFilesForClinic(clinicName) {
     if (!AUDIO_WEB_ENGINE_ENABLED) return;
-    const clinicFiles = clinicName ? getClinicAudioCandidates(clinicName) : [];
+
     const files = flattenAudioItems([
         "audio/moi-so.mp3",
         "audio/uu-tien.mp3",
         "audio/a.mp3",
-        ...clinicFiles,
-        ...getLikelyAudioFilesForPreload()
+        clinicName ? getClinicAudioCandidates(clinicName) : [],
+        ...getNextNumbersForPreload(clinicName, 8).map(n => getNumberAudioCandidates(n))
     ]);
 
-    // Nạp nền, không chặn giao diện. File lỗi sẽ được bỏ qua vì đã có candidate dự phòng.
+    // Chỉ preload các file có khả năng dùng ngay, tránh bắn hàng trăm request MP3 lên Vercel.
     files.forEach(file => loadAudioBuffer(file).catch(() => {}));
 }
 
@@ -1144,9 +1199,11 @@ function recallNumber(number) {
     const isPriority = typeof number === "string" && number.startsWith("A");
     const numOnly = isPriority ? number.slice(1) : number;
 
+    const numberAudioCandidates = getNumberAudioCandidates(numOnly);
+
     const files = isPriority
-      ? ["audio/uu-tien.mp3", "audio/a.mp3", `audio/so-${numOnly}.mp3`, clinicAudioCandidates]
-      : ["audio/moi-so.mp3", `audio/so-${number}.mp3`, clinicAudioCandidates];
+      ? ["audio/uu-tien.mp3", "audio/a.mp3", numberAudioCandidates, clinicAudioCandidates]
+      : ["audio/moi-so.mp3", numberAudioCandidates, clinicAudioCandidates];
 
     enqueueAudioSequence(files);
 }
