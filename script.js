@@ -87,17 +87,6 @@ let isPlayingAudio = false;  // Trạng thái đang phát hay không
 // Khoảng chờ giữa các đoạn được xử lý bằng cách cắt bớt khoảng lặng ở đầu/cuối file MP3.
 const CALL_AUDIO_SPEED = 1.0;
 
-// Ép trình duyệt/Vercel tải lại file âm thanh mới sau mỗi lần cập nhật.
-// Khi sửa lại file MP3 nhưng giữ nguyên tên file, bản web có thể vẫn phát file cũ do cache.
-const APP_ASSET_VERSION = "20260622_audio_gap_fix_v2";
-
-function withAssetVersion(filePath) {
-    if (!filePath || typeof filePath !== "string") return filePath;
-    if (/^(data:|blob:)/i.test(filePath)) return filePath;
-    const joiner = filePath.includes("?") ? "&" : "?";
-    return `${filePath}${joiner}v=${encodeURIComponent(APP_ASSET_VERSION)}`;
-}
-
 function normalizeKey(name) {
     return name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f\s]/g, "-");
 }
@@ -308,7 +297,7 @@ if (user.role === "display") {
         // Load lại file CSS giao diện tivi (nếu có file riêng)
         const cssLink = document.createElement("link");
         cssLink.rel = "stylesheet";
-        cssLink.href = `display.css?v=${APP_ASSET_VERSION}`; // Đổi đúng tên file .css cho hiển thị tivi, kèm version để tránh cache
+        cssLink.href = "display.css"; // Đổi đúng tên file .css cho hiển thị tivi
         document.head.appendChild(cssLink);
 
         // Lắng nghe số gọi mới + nháy hiệu ứng + render
@@ -337,6 +326,7 @@ if (user.role === "display") {
         document.getElementById("main-heading").style.display = "none";
         document.getElementById("top-right-buttons").style.display = "block";
         setTimeout(updateCalledList, 100);
+        setTimeout(() => warmupAudioFilesForClinic(selectedClinic), 500);
     } else {
         showClinicSelect(); // ✅ Chỉ gọi khi chưa có selectedClinic
     }
@@ -776,6 +766,7 @@ function confirmClinic() {
     if (statsBox) statsBox.style.display = "flex";
 
     localStorage.setItem("selectedClinic", selectedClinic);
+    warmupAudioFilesForClinic(selectedClinic);
     loadClinics(() => {
         loadCalledNumbers(() => {
             loadCalledHistory(() => {
@@ -791,14 +782,173 @@ function enqueueAudioSequence(files) {
     playAudioQueue();
 }
 
+// ===== TỐI ƯU ÂM THANH KHI CHẠY TRÊN WEB =====
+// Lý do: chạy offline đọc nhanh vì file nằm trên máy; chạy Vercel có thể bị trễ khi browser
+// bắt đầu tải từng file MP3. Web Audio sẽ nạp file vào bộ nhớ rồi xếp lịch phát sát nhau.
+const AUDIO_WEB_ENGINE_ENABLED = window.location.protocol !== "file:" && !!(window.AudioContext || window.webkitAudioContext);
+const AUDIO_TAIL_CUT_SECONDS = 0.12;     // cắt nhẹ khoảng lặng cuối file, không tăng tốc giọng đọc
+const AUDIO_SEQUENCE_START_DELAY = 0.03; // bắt đầu sau 30ms để tránh hụt âm đầu
+const audioBufferCache = new Map();
+const audioBufferPromiseCache = new Map();
+let callAudioContext = null;
+let audioWarmupStarted = false;
+
+function getCallAudioContext() {
+    if (!AUDIO_WEB_ENGINE_ENABLED) return null;
+    if (!callAudioContext) {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        callAudioContext = new Ctx();
+    }
+    return callAudioContext;
+}
+
+function flattenAudioItems(items) {
+    const out = [];
+    items.forEach(item => {
+        if (Array.isArray(item)) {
+            item.forEach(x => out.push(x));
+        } else if (item) {
+            out.push(item);
+        }
+    });
+    return [...new Set(out)];
+}
+
+async function loadAudioBuffer(file) {
+    const ctx = getCallAudioContext();
+    if (!ctx) throw new Error("Web Audio không khả dụng");
+
+    if (audioBufferCache.has(file)) return audioBufferCache.get(file);
+    if (audioBufferPromiseCache.has(file)) return audioBufferPromiseCache.get(file);
+
+    const promise = fetch(file, { cache: "force-cache" })
+        .then(response => {
+            if (!response.ok) throw new Error(`Không tải được ${file}`);
+            return response.arrayBuffer();
+        })
+        .then(arrayBuffer => ctx.decodeAudioData(arrayBuffer))
+        .then(buffer => {
+            audioBufferCache.set(file, buffer);
+            audioBufferPromiseCache.delete(file);
+            return buffer;
+        })
+        .catch(error => {
+            audioBufferPromiseCache.delete(file);
+            throw error;
+        });
+
+    audioBufferPromiseCache.set(file, promise);
+    return promise;
+}
+
+async function resolveAudioItem(item) {
+    const candidates = Array.isArray(item) ? item : [item];
+    for (const file of candidates) {
+        try {
+            const buffer = await loadAudioBuffer(file);
+            return { file, buffer };
+        } catch (error) {
+            // Thử candidate kế tiếp, ví dụ file không dấu rồi tới file có dấu.
+        }
+    }
+    console.warn("Không phát được file âm thanh:", candidates);
+    return null;
+}
+
+async function playAudioSequenceWithWebAudio(files) {
+    const ctx = getCallAudioContext();
+    if (!ctx) return false;
+    if (ctx.state === "suspended") await ctx.resume();
+
+    const resolvedItems = [];
+    for (const item of files) {
+        const resolved = await resolveAudioItem(item);
+        if (resolved) resolvedItems.push(resolved);
+    }
+
+    if (resolvedItems.length === 0) return false;
+
+    let startTime = ctx.currentTime + AUDIO_SEQUENCE_START_DELAY;
+    let cursor = startTime;
+    const sources = [];
+
+    resolvedItems.forEach(({ buffer }) => {
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
+        source.start(cursor);
+        sources.push(source);
+
+        // Không tăng playbackRate. Chỉ nối các đoạn sát hơn bằng cách cắt nhẹ đuôi im lặng.
+        const effectiveDuration = Math.max(0.22, buffer.duration - AUDIO_TAIL_CUT_SECONDS);
+        cursor += effectiveDuration;
+    });
+
+    await new Promise(resolve => {
+        const waitMs = Math.max(120, (cursor - ctx.currentTime) * 1000 + 80);
+        setTimeout(resolve, waitMs);
+    });
+
+    return true;
+}
+
+function getLikelyAudioFilesForPreload() {
+    const files = new Set(["audio/moi-so.mp3", "audio/uu-tien.mp3", "audio/a.mp3"]);
+
+    for (let i = 1; i <= 100; i++) {
+        files.add(`audio/so-${i}.mp3`);
+        files.add(`audio/so-${String(i).padStart(2, "0")}.mp3`);
+    }
+
+    clinics.forEach(clinic => {
+        getClinicAudioCandidates(clinic.name).forEach(file => files.add(file));
+    });
+
+    if (selectedClinic) {
+        getClinicAudioCandidates(selectedClinic).forEach(file => files.add(file));
+    }
+
+    return [...files];
+}
+
+function warmupAudioFilesForClinic(clinicName) {
+    if (!AUDIO_WEB_ENGINE_ENABLED) return;
+    const clinicFiles = clinicName ? getClinicAudioCandidates(clinicName) : [];
+    const files = flattenAudioItems([
+        "audio/moi-so.mp3",
+        "audio/uu-tien.mp3",
+        "audio/a.mp3",
+        ...clinicFiles,
+        ...getLikelyAudioFilesForPreload()
+    ]);
+
+    // Nạp nền, không chặn giao diện. File lỗi sẽ được bỏ qua vì đã có candidate dự phòng.
+    files.forEach(file => loadAudioBuffer(file).catch(() => {}));
+}
+
+function warmupAudioFilesOnce() {
+    if (audioWarmupStarted) return;
+    audioWarmupStarted = true;
+    setTimeout(() => warmupAudioFilesForClinic(selectedClinic), 300);
+}
+
 async function playAudioQueue() {
     if (isPlayingAudio || audioQueue.length === 0) return;
 
     isPlayingAudio = true;
     const files = audioQueue.shift();
 
-    for (let i = 0; i < files.length; i++) {
-        await playAudioItem(files[i]);
+    let playedByWebAudio = false;
+    try {
+        playedByWebAudio = await playAudioSequenceWithWebAudio(files);
+    } catch (error) {
+        console.warn("Web Audio lỗi, chuyển sang phát HTML Audio:", error);
+    }
+
+    if (!playedByWebAudio) {
+        for (let i = 0; i < files.length; i++) {
+            await playAudioItem(files[i]);
+        }
     }
 
     isPlayingAudio = false;
@@ -808,7 +958,7 @@ async function playAudioQueue() {
 
 function playSingleAudioFile(file) {
     return new Promise(resolve => {
-        const audio = new Audio(withAssetVersion(file));
+        const audio = new Audio(file);
         let done = false;
 
         // Giữ giọng đọc tốc độ bình thường; chỉ preload để chuyển đoạn mượt hơn.
@@ -897,6 +1047,7 @@ function updateCalledList() {
 
 window.onload = function () {
     const user = JSON.parse(localStorage.getItem("currentUser"));
+    warmupAudioFilesOnce();
 
     // Nếu chưa đăng nhập thì chỉ render select
     if (!user) {
