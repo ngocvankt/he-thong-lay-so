@@ -82,6 +82,11 @@ let calledNumbers = {}; // Phatso cấp số
 let calledHistory = {}; // Phongkham đã gọi
 let audioQueue = [];         // Hàng đợi âm thanh
 let isPlayingAudio = false;  // Trạng thái đang phát hay không
+
+// Tốc độ phát âm thanh giữ nguyên 1.0 để giọng đọc tự nhiên.
+// Khoảng chờ giữa các đoạn được xử lý bằng cách cắt bớt khoảng lặng ở đầu/cuối file MP3.
+const CALL_AUDIO_SPEED = 1.0;
+
 function normalizeKey(name) {
     return name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f\s]/g, "-");
 }
@@ -795,6 +800,14 @@ function playSingleAudioFile(file) {
         const audio = new Audio(file);
         let done = false;
 
+        // Giữ giọng đọc tốc độ bình thường; chỉ preload để chuyển đoạn mượt hơn.
+        audio.preload = "auto";
+        audio.defaultPlaybackRate = CALL_AUDIO_SPEED;
+        audio.playbackRate = CALL_AUDIO_SPEED;
+        audio.preservesPitch = true;
+        audio.mozPreservesPitch = true;
+        audio.webkitPreservesPitch = true;
+
         const finish = () => {
             if (done) return;
             done = true;
@@ -811,11 +824,12 @@ function playSingleAudioFile(file) {
         audio.onerror = fail;
 
         audio.onloadedmetadata = () => {
-            // Chừa một timeout dự phòng để không bị kẹt nếu browser không bắn sự kiện ended.
+            // Timeout dự phòng nếu browser không bắn sự kiện ended; không tạo khoảng nghỉ nhân tạo.
             const duration = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 2;
-            setTimeout(finish, Math.max(700, duration * 1000 + 250));
+            setTimeout(finish, Math.max(350, duration * 1000 + 60));
         };
 
+        audio.load();
         const playPromise = audio.play();
         if (playPromise && typeof playPromise.catch === "function") {
             playPromise.catch(fail);
