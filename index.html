@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <title>HỆ THỐNG LẤY SỐ KHÁM BỆNH</title>
   <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="display.css">
   <!-- Quill CSS -->
 <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -12,6 +11,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
+
+  <div id="feature-update-banner" class="app-update-banner no-print" role="status" aria-label="Thông báo cập nhật phần mềm">
+    <div class="app-update-marquee">
+      <span>🔔 Cập nhật lúc 08:55 ngày 22/06/2026: Làm mới giao diện phòng khám, mở rộng khối gọi số, làm rõ thống kê đã cấp/vừa gọi/còn lại. Các chức năng khác được giữ nguyên.</span>
+    </div>
+  </div>
+
+  <header class="app-top-title no-print">
+    <div class="app-top-kicker">TRUNG TÂM Y TẾ KHU VỰC HÀM THUẬN BẮC</div>
+    <div class="app-top-main">HỆ THỐNG LẤY SỐ KHÁM BỆNH</div>
+  </header>
 
   <div class="login-box">
     <h1>HỆ THỐNG LẤY SỐ KHÁM BỆNH</h1>
@@ -51,79 +61,68 @@
 </div>
 
 <!-- Phòng khám -->
-<div id="phongkham-container" class="container" style="display: none;">
-<h2 id="main-heading" style="font-size: 26px; color: #007bff; font-weight: bold; text-align: center; margin-bottom: 20px;">
-  VUI LÒNG THIẾT LẬP PHÒNG KHÁM!
-</h2>
+<div id="phongkham-container" class="container clinic-container" style="display: none;">
+  <h2 id="main-heading" class="clinic-setup-heading">
+    VUI LÒNG THIẾT LẬP PHÒNG KHÁM!
+  </h2>
 
-  <!-- Hiển thị tên phòng khám và các nút -->
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-    <h3 id="clinic-name-display" class="clinic-header" style="
-      background-color: #007bff;
-      color: white;
-      padding: 12px 20px;
-      border-radius: 10px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-      font-size: 22px;
-      font-weight: bold;
-      letter-spacing: 1px;
-      display: none;
-    ">
-      🏥 <span id="clinic-name-text"></span>
+  <!-- Hiển thị tên phòng khám -->
+  <div class="clinic-title-wrap">
+    <h3 id="clinic-name-display" class="clinic-header" style="display: none;">
+      <span id="clinic-name-text"></span>
     </h3>
   </div>
 
   <!-- Khối chọn phòng khám -->
-  <div id="clinic-select-container" style="text-align: center;">
-    <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 20px;">
-      <select id="clinic-select" style="font-size: 18px; padding: 8px 16px; border-radius: 6px; min-width: 250px;">
+  <div id="clinic-select-container" class="clinic-select-card">
+    <div class="clinic-select-title">Chọn phòng khám làm việc</div>
+    <div class="clinic-select-row">
+      <select id="clinic-select">
         <option value="">-- Chọn phòng khám --</option>
       </select>
-      <button onclick="confirmClinic()" style="
-        font-size: 18px;
-        padding: 8px 20px;
-        background-color: #007bff;
-        color: white;
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
-      ">✅ OK</button>
+      <button onclick="confirmClinic()" class="clinic-ok-btn">✅ Xác nhận</button>
     </div>
   </div>
 
   <!-- Giao diện chính -->
-  <div id="phongkham-action" style="display: none;">
-    <div style="text-align: center; margin-top: 20px;">
-      <button onclick="callNextNumbers(1)" class="next-btn" style="padding: 12px 32px;">📢 NEXT</button>
+  <div id="phongkham-action" class="clinic-dashboard" style="display: none;">
+    <div class="clinic-call-panel">
+      <div class="call-panel-label">KHU VỰC GỌI SỐ KHÁM BỆNH</div>
+      <button onclick="callNextNumbers(1)" class="next-btn">📢 Gọi số tiếp theo</button>
+      <div class="call-panel-note">Bấm một lần để gọi số kế tiếp theo thứ tự đã cấp</div>
     </div>
 
-    <div id="phongkham-stats" class="phongkham-stats-box" style="display: none; justify-content: center; margin-top: 20px;">
-      <div class="stat-box">
+    <div id="phongkham-stats" class="phongkham-stats-box" style="display: none;">
+      <div class="stat-box stat-issued">
+        <div class="stat-icon">📋</div>
         <div class="stat-label">Đã cấp</div>
         <div id="total-issued" class="stat-value">0</div>
       </div>
-      <div class="stat-box">
+      <div class="stat-box stat-called">
+        <div class="stat-icon">🔊</div>
         <div class="stat-label">Vừa gọi</div>
         <div id="last-called" class="stat-value">-</div>
       </div>
-      <div class="stat-box">
+      <div class="stat-box stat-remaining">
+        <div class="stat-icon">⏳</div>
         <div class="stat-label">Còn lại</div>
         <div id="remaining" class="stat-value">0</div>
       </div>
     </div>
 
-  <div id="called-section" style="margin-top: 20px; display: none;">
-  <select id="called-select" style="font-size:18px; padding:8px 16px; border-radius:6px; min-width:200px; margin-top:10px;">
-    <option value="">-- Chọn số đã gọi --</option>
-  </select>
-  </div>
-
-    <div style="width: 100%; display: flex; justify-content: center; margin-top: 32px;">
-  <div id="top-right-buttons" style="display: none; gap: 10px;">
-    <button onclick="switchClinic()" style="background:#007bff; color:#fff; padding:10px 28px; border:none; border-radius:10px;">🔄 Đổi phòng khám</button>
-    <button onclick="logout()" style="background:#dc3545; color:#fff; padding:10px 28px; border:none; border-radius:10px;">🚪 Đăng xuất</button>
+    <div id="called-section" class="called-section" style="display: none;">
+      <label for="called-select">Chọn lại số đã gọi để gọi lại</label>
+      <select id="called-select">
+        <option value="">-- Chọn số đã gọi --</option>
+      </select>
     </div>
-  </div>
+
+    <div class="clinic-action-footer">
+      <div id="top-right-buttons" style="display: none; gap: 10px;">
+        <button onclick="switchClinic()" class="switch-clinic-btn">🔄 Đổi phòng khám</button>
+        <button onclick="logout()" class="clinic-logout-btn">🚪 Đăng xuất</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -193,6 +192,10 @@
     </div>
   </div>
 </div>
+
+<footer id="app-copyright" class="app-copyright no-print">
+  Bản quyền © 2025 - Designed &amp; Coded by Đặng Ngọc Văn
+</footer>
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>

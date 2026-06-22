@@ -85,6 +85,50 @@ let isPlayingAudio = false;  // Trạng thái đang phát hay không
 function normalizeKey(name) {
     return name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f\s]/g, "-");
 }
+
+// Chuẩn hóa tên phòng khám để tìm đúng file âm thanh, kể cả khi tên phòng trên Firebase
+// khác nhẹ với tên file, ví dụ: "Phòng khám sản" ↔ "phong-kham-san-khoa.mp3".
+function normalizeAudioKey(name) {
+    return String(name || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/đ/g, "d")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+}
+
+const clinicAudioFileMap = {
+    "phong-kham-dong-y-1": "phong-kham-dong-y-1.mp3",
+    "phong-kham-dong-y-2": "phong-kham-dong-y-2.mp3",
+    "phong-kham-noi-1": "phong-kham-noi-1.mp3",
+    "phong-kham-noi-2": "phong-kham-noi-2.mp3",
+    "phong-kham-noi-3": "phong-kham-noi-3.mp3",
+    "phong-kham-noi-4": "phong-kham-noi-4.mp3",
+    "phong-kham-noi-5": "phong-kham-noi-5.mp3",
+    "phong-kham-noi-tong-hop": "phong-kham-noi-tong-hop.mp3",
+    "phong-kham-nhi-1": "phong-kham-nhi-1.mp3",
+    "phong-kham-nhi-2": "phong-kham-nhi-2.mp3",
+    "phong-kham-mat": "phong-kham-mat.mp3",
+    "phong-kham-tai-mui-hong": "phong-kham-tai-mui-hong.mp3",
+    "phong-kham-rang-ham-mat": "phong-kham-rang-ham-mat.mp3",
+    "phong-kham-san": "phong-kham-san-khoa.mp3",
+    "phong-kham-san-khoa": "phong-kham-san-khoa.mp3",
+    "phong-kham-ngoai": "phong-kham-ngoai-tong-hop.mp3",
+    "phong-kham-ngoai-tong-hop": "phong-kham-ngoai-tong-hop.mp3"
+};
+
+function getClinicAudioPath(clinicName) {
+    const key = normalizeAudioKey(clinicName);
+    const mappedFile = clinicAudioFileMap[key];
+
+    if (mappedFile) {
+        return `audio/${mappedFile}`;
+    }
+
+    // Dự phòng cho phòng khám mới: nên đặt file âm thanh theo tên không dấu, ví dụ: phong-kham-da-lieu.mp3.
+    return `audio/${key}.mp3`;
+}
 const effectQueues = {};
 const effectStatus = {}; // { key: true/false }
 const lastDisplayedNumbers = {}; // { key: number }
@@ -624,7 +668,7 @@ async function callNextNumbers(count) {
     await new Promise(resolve => loadCalledHistory(resolve));
     const clinicName = selectedClinic;
     const key = normalizeKey(clinicName); // ✅ key cho dữ liệu
-    const slug = clinicName.toLowerCase().replace(/\s+/g, "-"); // ✅ slug cho âm thanh
+    const clinicAudioPath = getClinicAudioPath(clinicName); // ✅ file âm thanh phòng khám
 
     const clinic = clinics.find(c => c.name === clinicName);
     if (!clinic) {
@@ -664,8 +708,8 @@ async function callNextNumbers(count) {
             : number.toString().padStart(2, "0");
 
         const files = isPriority
-            ? ["audio/uu-tien.mp3", "audio/a.mp3", `audio/so-${numOnly}.mp3`, `audio/${slug}.mp3`]
-            : ["audio/moi-so.mp3", `audio/so-${numOnly}.mp3`, `audio/${slug}.mp3`];
+            ? ["audio/uu-tien.mp3", "audio/a.mp3", `audio/so-${numOnly}.mp3`, clinicAudioPath]
+            : ["audio/moi-so.mp3", `audio/so-${numOnly}.mp3`, clinicAudioPath];
 
         enqueueAudioSequence(files);
         history.add(number);
@@ -873,13 +917,13 @@ function hidePopupUpdate() {
 
 
 function recallNumber(number) {
-    const slug = selectedClinic.toLowerCase().replace(/\s+/g, "-");
+    const clinicAudioPath = getClinicAudioPath(selectedClinic);
     const isPriority = typeof number === "string" && number.startsWith("A");
     const numOnly = isPriority ? number.slice(1) : number;
 
     const files = isPriority
-      ? ["audio/uu-tien.mp3", "audio/a.mp3", `audio/so-${numOnly}.mp3`, `audio/${slug}.mp3`]
-      : ["audio/moi-so.mp3", `audio/so-${number}.mp3`, `audio/${slug}.mp3`];
+      ? ["audio/uu-tien.mp3", "audio/a.mp3", `audio/so-${numOnly}.mp3`, clinicAudioPath]
+      : ["audio/moi-so.mp3", `audio/so-${number}.mp3`, clinicAudioPath];
 
     enqueueAudioSequence(files);
 }
