@@ -99,35 +99,47 @@ function normalizeAudioKey(name) {
 }
 
 const clinicAudioFileMap = {
-    "phong-kham-dong-y-1": "phong-kham-dong-y-1.mp3",
-    "phong-kham-dong-y-2": "phong-kham-dong-y-2.mp3",
-    "phong-kham-noi-1": "phong-kham-noi-1.mp3",
-    "phong-kham-noi-2": "phong-kham-noi-2.mp3",
-    "phong-kham-noi-3": "phong-kham-noi-3.mp3",
-    "phong-kham-noi-4": "phong-kham-noi-4.mp3",
-    "phong-kham-noi-5": "phong-kham-noi-5.mp3",
-    "phong-kham-noi-tong-hop": "phong-kham-noi-tong-hop.mp3",
-    "phong-kham-nhi-1": "phong-kham-nhi-1.mp3",
-    "phong-kham-nhi-2": "phong-kham-nhi-2.mp3",
-    "phong-kham-mat": "phong-kham-mat.mp3",
-    "phong-kham-tai-mui-hong": "phong-kham-tai-mui-hong.mp3",
-    "phong-kham-rang-ham-mat": "phong-kham-rang-ham-mat.mp3",
-    "phong-kham-san": "phong-kham-san-khoa.mp3",
-    "phong-kham-san-khoa": "phong-kham-san-khoa.mp3",
-    "phong-kham-ngoai": "phong-kham-ngoai-tong-hop.mp3",
-    "phong-kham-ngoai-tong-hop": "phong-kham-ngoai-tong-hop.mp3"
+    "phong-kham-dong-y-1": ["phong-kham-dong-y-1.mp3", "phòng-khám-đông-y-1.mp3"],
+    "phong-kham-dong-y-2": ["phong-kham-dong-y-2.mp3", "phòng-khám-đông-y-2.mp3"],
+
+    // Bổ sung cả tên file không dấu và có dấu để tránh lỗi lệch đường dẫn khi chạy local/Vercel.
+    // Riêng Nội 1 trước đó dễ bị im tên phòng vì chỉ thử một đường dẫn duy nhất.
+    "phong-kham-noi-1": ["phong-kham-noi-1.mp3", "phòng-khám-nội-1.mp3"],
+    "phong-kham-noi-2": ["phong-kham-noi-2.mp3", "phòng-khám-nội-2.mp3"],
+    "phong-kham-noi-3": ["phong-kham-noi-3.mp3", "phòng-khám-nội-3.mp3"],
+    "phong-kham-noi-4": ["phong-kham-noi-4.mp3", "phòng-khám-nội-4.mp3"],
+    "phong-kham-noi-5": ["phong-kham-noi-5.mp3", "phòng-khám-nội-5.mp3"],
+    "phong-kham-noi-tong-hop": ["phong-kham-noi-tong-hop.mp3", "phòng-khám-nội-tổng-hợp.mp3"],
+
+    "phong-kham-nhi-1": ["phong-kham-nhi-1.mp3", "phòng-khám-nhi-1.mp3"],
+    "phong-kham-nhi-2": ["phong-kham-nhi-2.mp3", "phòng-khám-nhi-2.mp3"],
+    "phong-kham-mat": ["phong-kham-mat.mp3", "phòng-khám-mắt.mp3"],
+    "phong-kham-tai-mui-hong": ["phong-kham-tai-mui-hong.mp3", "phòng-khám-tai-mũi-họng.mp3"],
+    "phong-kham-rang-ham-mat": ["phong-kham-rang-ham-mat.mp3", "phòng-khám-răng-hàm-mặt.mp3"],
+    "phong-kham-san": ["phong-kham-san-khoa.mp3", "phòng-khám-sản-khoa.mp3"],
+    "phong-kham-san-khoa": ["phong-kham-san-khoa.mp3", "phòng-khám-sản-khoa.mp3"],
+    "phong-kham-ngoai": ["phong-kham-ngoai-tong-hop.mp3", "phòng-khám-ngoại-tổng-hợp.mp3"],
+    "phong-kham-ngoai-tong-hop": ["phong-kham-ngoai-tong-hop.mp3", "phòng-khám-ngoại-tổng-hợp.mp3"]
 };
 
-function getClinicAudioPath(clinicName) {
+function getClinicAudioCandidates(clinicName) {
     const key = normalizeAudioKey(clinicName);
-    const mappedFile = clinicAudioFileMap[key];
+    const mappedFiles = clinicAudioFileMap[key];
 
-    if (mappedFile) {
-        return `audio/${mappedFile}`;
+    if (Array.isArray(mappedFiles) && mappedFiles.length > 0) {
+        return mappedFiles.map(file => `audio/${file}`);
+    }
+
+    if (typeof mappedFiles === "string") {
+        return [`audio/${mappedFiles}`];
     }
 
     // Dự phòng cho phòng khám mới: nên đặt file âm thanh theo tên không dấu, ví dụ: phong-kham-da-lieu.mp3.
-    return `audio/${key}.mp3`;
+    return [`audio/${key}.mp3`];
+}
+
+function getClinicAudioPath(clinicName) {
+    return getClinicAudioCandidates(clinicName)[0];
 }
 const effectQueues = {};
 const effectStatus = {}; // { key: true/false }
@@ -668,7 +680,7 @@ async function callNextNumbers(count) {
     await new Promise(resolve => loadCalledHistory(resolve));
     const clinicName = selectedClinic;
     const key = normalizeKey(clinicName); // ✅ key cho dữ liệu
-    const clinicAudioPath = getClinicAudioPath(clinicName); // ✅ file âm thanh phòng khám
+    const clinicAudioCandidates = getClinicAudioCandidates(clinicName); // ✅ các đường dẫn âm thanh phòng khám
 
     const clinic = clinics.find(c => c.name === clinicName);
     if (!clinic) {
@@ -708,8 +720,8 @@ async function callNextNumbers(count) {
             : number.toString().padStart(2, "0");
 
         const files = isPriority
-            ? ["audio/uu-tien.mp3", "audio/a.mp3", `audio/so-${numOnly}.mp3`, clinicAudioPath]
-            : ["audio/moi-so.mp3", `audio/so-${numOnly}.mp3`, clinicAudioPath];
+            ? ["audio/uu-tien.mp3", "audio/a.mp3", `audio/so-${numOnly}.mp3`, clinicAudioCandidates]
+            : ["audio/moi-so.mp3", `audio/so-${numOnly}.mp3`, clinicAudioCandidates];
 
         enqueueAudioSequence(files);
         history.add(number);
@@ -770,21 +782,56 @@ async function playAudioQueue() {
     const files = audioQueue.shift();
 
     for (let i = 0; i < files.length; i++) {
-        await new Promise(resolve => {
-            const audio = new Audio(files[i]);
-            audio.onloadedmetadata = () => {
-                const duration = audio.duration;
-                const nextStartTime = (duration - 0.1) * 650;
-                setTimeout(resolve, nextStartTime);
-                audio.play();
-            };
-            audio.onerror = resolve;
-        });
+        await playAudioItem(files[i]);
     }
 
     isPlayingAudio = false;
     document.getElementById("called-section").style.display = "block";
     playAudioQueue(); // Gọi tiếp chuỗi tiếp theo nếu còn
+}
+
+function playSingleAudioFile(file) {
+    return new Promise(resolve => {
+        const audio = new Audio(file);
+        let done = false;
+
+        const finish = () => {
+            if (done) return;
+            done = true;
+            resolve(true);
+        };
+
+        const fail = () => {
+            if (done) return;
+            done = true;
+            resolve(false);
+        };
+
+        audio.onended = finish;
+        audio.onerror = fail;
+
+        audio.onloadedmetadata = () => {
+            // Chừa một timeout dự phòng để không bị kẹt nếu browser không bắn sự kiện ended.
+            const duration = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 2;
+            setTimeout(finish, Math.max(700, duration * 1000 + 250));
+        };
+
+        const playPromise = audio.play();
+        if (playPromise && typeof playPromise.catch === "function") {
+            playPromise.catch(fail);
+        }
+    });
+}
+
+async function playAudioItem(item) {
+    const candidates = Array.isArray(item) ? item : [item];
+
+    for (const file of candidates) {
+        const ok = await playSingleAudioFile(file);
+        if (ok) return;
+    }
+
+    console.warn("Không phát được file âm thanh:", candidates);
 }
 
 function updateCalledList() {
@@ -917,13 +964,13 @@ function hidePopupUpdate() {
 
 
 function recallNumber(number) {
-    const clinicAudioPath = getClinicAudioPath(selectedClinic);
+    const clinicAudioCandidates = getClinicAudioCandidates(selectedClinic);
     const isPriority = typeof number === "string" && number.startsWith("A");
     const numOnly = isPriority ? number.slice(1) : number;
 
     const files = isPriority
-      ? ["audio/uu-tien.mp3", "audio/a.mp3", `audio/so-${numOnly}.mp3`, clinicAudioPath]
-      : ["audio/moi-so.mp3", `audio/so-${number}.mp3`, clinicAudioPath];
+      ? ["audio/uu-tien.mp3", "audio/a.mp3", `audio/so-${numOnly}.mp3`, clinicAudioCandidates]
+      : ["audio/moi-so.mp3", `audio/so-${number}.mp3`, clinicAudioCandidates];
 
     enqueueAudioSequence(files);
 }
