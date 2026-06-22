@@ -87,6 +87,17 @@ let isPlayingAudio = false;  // Trạng thái đang phát hay không
 // Khoảng chờ giữa các đoạn được xử lý bằng cách cắt bớt khoảng lặng ở đầu/cuối file MP3.
 const CALL_AUDIO_SPEED = 1.0;
 
+// Ép trình duyệt/Vercel tải lại file âm thanh mới sau mỗi lần cập nhật.
+// Khi sửa lại file MP3 nhưng giữ nguyên tên file, bản web có thể vẫn phát file cũ do cache.
+const APP_ASSET_VERSION = "20260622_audio_gap_fix_v2";
+
+function withAssetVersion(filePath) {
+    if (!filePath || typeof filePath !== "string") return filePath;
+    if (/^(data:|blob:)/i.test(filePath)) return filePath;
+    const joiner = filePath.includes("?") ? "&" : "?";
+    return `${filePath}${joiner}v=${encodeURIComponent(APP_ASSET_VERSION)}`;
+}
+
 function normalizeKey(name) {
     return name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f\s]/g, "-");
 }
@@ -297,7 +308,7 @@ if (user.role === "display") {
         // Load lại file CSS giao diện tivi (nếu có file riêng)
         const cssLink = document.createElement("link");
         cssLink.rel = "stylesheet";
-        cssLink.href = "display.css"; // Đổi đúng tên file .css cho hiển thị tivi
+        cssLink.href = `display.css?v=${APP_ASSET_VERSION}`; // Đổi đúng tên file .css cho hiển thị tivi, kèm version để tránh cache
         document.head.appendChild(cssLink);
 
         // Lắng nghe số gọi mới + nháy hiệu ứng + render
@@ -797,7 +808,7 @@ async function playAudioQueue() {
 
 function playSingleAudioFile(file) {
     return new Promise(resolve => {
-        const audio = new Audio(file);
+        const audio = new Audio(withAssetVersion(file));
         let done = false;
 
         // Giữ giọng đọc tốc độ bình thường; chỉ preload để chuyển đoạn mượt hơn.
