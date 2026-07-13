@@ -30,6 +30,8 @@ const FIREBASE_SYNC_KEYS = [
 
 const FIREBASE_CORE_KEYS = [APP.users, APP.settings];
 const FIREBASE_TEST_KEYS = [APP.reports, APP.advances, APP.invoices, APP.lostCases, APP.refunds];
+const FIREBASE_CLEAR_MARKER_KEY = 'tuvp_last_clear_test_v1';
+const APP_VERSION = 'v41';
 
 let firebaseSyncReady = false;
 let firebaseSyncDisabled = false;
@@ -90,6 +92,29 @@ function firebaseRef(path = '') {
   return window.firebaseDb.ref(path ? `${FIREBASE_ROOT}/${path}` : FIREBASE_ROOT);
 }
 
+
+function clearLocalBusinessData() {
+  FIREBASE_TEST_KEYS.forEach(key => localStorage.removeItem(key));
+  // Dọn thêm các key cũ/nháp nếu các bản trước từng sinh ra.
+  Object.keys(localStorage).forEach(key => {
+    if (/^(tuvp_reports|tuvp_advances|tuvp_invoices|tuvp_lost_cases|tuvp_refunds|tuvp_problem)/.test(key)) {
+      localStorage.removeItem(key);
+    }
+  });
+}
+
+function getCorePayloadForFirebase(extra = {}) {
+  const payload = { ...extra };
+  FIREBASE_CORE_KEYS.forEach(key => {
+    const raw = localStorage.getItem(key);
+    if (raw !== null) {
+      try { payload[key] = JSON.parse(raw); }
+      catch { /* bỏ qua dữ liệu lỗi */ }
+    }
+  });
+  return sanitizeForFirebase(payload);
+}
+
 async function pullAllFromFirebase() {
   if (!firebaseAvailable()) return false;
   try {
@@ -99,9 +124,16 @@ async function pullAllFromFirebase() {
     // Firebase là nguồn chính. Nếu Firebase chưa có nhánh dữ liệu hoặc vừa bị xóa,
     // tuyệt đối không được để dữ liệu test cũ trong localStorage tự hồi sinh lên cloud.
     if (!data || typeof data !== 'object') {
-      FIREBASE_TEST_KEYS.forEach(key => localStorage.removeItem(key));
+      clearLocalBusinessData();
       firebaseSyncReady = true;
       return false;
+    }
+
+    const remoteClearAt = Number(data._lastClearTestDataAt || 0);
+    const localClearAt = Number(localStorage.getItem(FIREBASE_CLEAR_MARKER_KEY) || 0);
+    if (remoteClearAt && remoteClearAt > localClearAt) {
+      clearLocalBusinessData();
+      localStorage.setItem(FIREBASE_CLEAR_MARKER_KEY, String(remoteClearAt));
     }
 
     FIREBASE_SYNC_KEYS.forEach(key => {
@@ -2732,24 +2764,31 @@ async function clearTestData() {
     btn.textContent = 'Đang xóa...';
   }
 
-  const testKeys = FIREBASE_TEST_KEYS;
+  const clearAt = Date.now();
 
   try {
-    // Khóa đồng bộ tạm thời trong lúc xóa để tránh thao tác render/reset đẩy dữ liệu cũ ngược lên Firebase.
+    // Khóa đồng bộ tạm thời trong lúc xóa để tránh render/reset đẩy dữ liệu cũ ngược lên Firebase.
     const oldSyncState = firebaseSyncDisabled;
     firebaseSyncDisabled = true;
 
-    // Xóa dữ liệu test trên máy hiện tại.
-    testKeys.forEach(k => localStorage.removeItem(k));
+    // Xóa sạch dữ liệu nghiệp vụ trên máy hiện tại.
+    clearLocalBusinessData();
+    localStorage.setItem(FIREBASE_CLEAR_MARKER_KEY, String(clearAt));
 
-    // Xóa dữ liệu test trên Firebase Realtime Database.
-    // Các tài khoản và cấu hình phần mềm không bị xóa.
+    // Ghi đè toàn bộ nhánh app trên Firebase bằng dữ liệu lõi.
+    // Cách set() này dứt điểm hơn update(null), tránh các nhánh phiếu thu cũ còn sót và tự hồi sinh khi reload.
     firebaseSyncDisabled = oldSyncState;
     if (firebaseAvailable()) {
-      const updates = { _lastClearTestDataAt: Date.now() };
-      testKeys.forEach(k => { updates[k] = null; });
-      await firebaseRef().update(updates);
+      const payload = getCorePayloadForFirebase({
+        _lastClearTestDataAt: clearAt,
+        _lastClearBy: currentUser?.fullName || currentUser?.username || '',
+        _appVersion: APP_VERSION
+      });
+      await firebaseRef().set(payload);
     }
+
+    // Đọc lại từ Firebase để ép localStorage đồng bộ với trạng thái vừa xóa.
+    await pullAllFromFirebase();
 
     resetReport(true);
     selectedReceipt = null;
