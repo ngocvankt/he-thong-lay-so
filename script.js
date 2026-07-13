@@ -28,6 +28,9 @@ const FIREBASE_SYNC_KEYS = [
   APP.settings
 ];
 
+const FIREBASE_CORE_KEYS = [APP.users, APP.settings];
+const FIREBASE_TEST_KEYS = [APP.reports, APP.advances, APP.invoices, APP.lostCases, APP.refunds];
+
 let firebaseSyncReady = false;
 let firebaseSyncDisabled = false;
 
@@ -92,20 +95,23 @@ async function pullAllFromFirebase() {
   try {
     const snap = await firebaseRef().once('value');
     const data = snap.val();
+
+    // Firebase là nguồn chính. Nếu Firebase chưa có nhánh dữ liệu hoặc vừa bị xóa,
+    // tuyệt đối không được để dữ liệu test cũ trong localStorage tự hồi sinh lên cloud.
     if (!data || typeof data !== 'object') {
+      FIREBASE_TEST_KEYS.forEach(key => localStorage.removeItem(key));
       firebaseSyncReady = true;
       return false;
     }
 
-    // Firebase là nguồn dữ liệu chính. Nếu một nhánh đã bị xóa trên Firebase
-    // thì cũng phải xóa bản localStorage tương ứng, nếu không refresh trang sẽ
-    // tự đẩy dữ liệu cũ từ máy lên lại Firebase.
     FIREBASE_SYNC_KEYS.forEach(key => {
       if (Object.prototype.hasOwnProperty.call(data, key)) {
         localStorage.setItem(key, JSON.stringify(data[key]));
-      } else {
+      } else if (FIREBASE_TEST_KEYS.includes(key)) {
+        // Nếu một nhánh dữ liệu nghiệp vụ đã bị xóa trên Firebase thì xóa luôn bản local.
         localStorage.removeItem(key);
       }
+      // Với users/settings: nếu cloud chưa có thì giữ local để có thể seed tài khoản/cấu hình.
     });
 
     firebaseSyncReady = true;
@@ -136,6 +142,26 @@ async function pushAllToFirebase() {
     return false;
   }
 }
+
+async function pushCoreDataToFirebase() {
+  if (!firebaseAvailable()) return false;
+  const payload = {};
+  FIREBASE_CORE_KEYS.forEach(key => {
+    const raw = localStorage.getItem(key);
+    if (raw !== null) {
+      try { payload[key] = JSON.parse(raw); }
+      catch { /* bỏ qua dữ liệu lỗi */ }
+    }
+  });
+  try {
+    await firebaseRef().update(sanitizeForFirebase(payload));
+    return true;
+  } catch (err) {
+    console.warn('Không đẩy được tài khoản/cấu hình lên Firebase:', err);
+    return false;
+  }
+}
+
 
 function saveJson(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
@@ -2706,16 +2732,21 @@ async function clearTestData() {
     btn.textContent = 'Đang xóa...';
   }
 
-  const testKeys = [APP.reports, APP.advances, APP.invoices, APP.lostCases, APP.refunds];
+  const testKeys = FIREBASE_TEST_KEYS;
 
   try {
+    // Khóa đồng bộ tạm thời trong lúc xóa để tránh thao tác render/reset đẩy dữ liệu cũ ngược lên Firebase.
+    const oldSyncState = firebaseSyncDisabled;
+    firebaseSyncDisabled = true;
+
     // Xóa dữ liệu test trên máy hiện tại.
     testKeys.forEach(k => localStorage.removeItem(k));
 
     // Xóa dữ liệu test trên Firebase Realtime Database.
     // Các tài khoản và cấu hình phần mềm không bị xóa.
+    firebaseSyncDisabled = oldSyncState;
     if (firebaseAvailable()) {
-      const updates = {};
+      const updates = { _lastClearTestDataAt: Date.now() };
       testKeys.forEach(k => { updates[k] = null; });
       await firebaseRef().update(updates);
     }
@@ -3471,12 +3502,11 @@ function bindEvents() {
 async function boot() {
   bindEvents();
 
-  // Kéo dữ liệu cloud xuống trước. Chỉ khởi tạo/đẩy local lên Firebase khi Firebase thật sự trống.
-  // Tránh tình trạng đã xóa dữ liệu test trên Firebase nhưng refresh trang lại đẩy dữ liệu cũ từ máy lên lại.
-  const pulledFromFirebase = await pullAllFromFirebase();
+  // Firebase là nguồn dữ liệu chính. Khi Firebase trống hoặc vừa xóa dữ liệu test,
+  // chỉ seed tài khoản/cấu hình, không tự đẩy lại báo cáo/phiếu thu cũ từ localStorage.
+  await pullAllFromFirebase();
   ensureDefaultData();
-
-  if (firebaseAvailable() && !pulledFromFirebase) pushAllToFirebase();
+  if (firebaseAvailable()) pushCoreDataToFirebase();
 
   currentUser = readSession();
   if (currentUser) showApp(); else showLogin();
