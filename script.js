@@ -97,9 +97,14 @@ async function pullAllFromFirebase() {
       return false;
     }
 
+    // Firebase là nguồn dữ liệu chính. Nếu một nhánh đã bị xóa trên Firebase
+    // thì cũng phải xóa bản localStorage tương ứng, nếu không refresh trang sẽ
+    // tự đẩy dữ liệu cũ từ máy lên lại Firebase.
     FIREBASE_SYNC_KEYS.forEach(key => {
       if (Object.prototype.hasOwnProperty.call(data, key)) {
         localStorage.setItem(key, JSON.stringify(data[key]));
+      } else {
+        localStorage.removeItem(key);
       }
     });
 
@@ -3466,13 +3471,12 @@ function bindEvents() {
 async function boot() {
   bindEvents();
 
-  // Nếu có Firebase thì kéo dữ liệu cloud xuống trước, rồi mới dựng dữ liệu mặc định.
-  // Nếu không có mạng/rules chưa đúng, phần mềm vẫn chạy localStorage như trước.
-  await pullAllFromFirebase();
+  // Kéo dữ liệu cloud xuống trước. Chỉ khởi tạo/đẩy local lên Firebase khi Firebase thật sự trống.
+  // Tránh tình trạng đã xóa dữ liệu test trên Firebase nhưng refresh trang lại đẩy dữ liệu cũ từ máy lên lại.
+  const pulledFromFirebase = await pullAllFromFirebase();
   ensureDefaultData();
 
-  // Nếu Firebase đang trống, đẩy dữ liệu mặc định/local hiện có lên để khởi tạo kho dữ liệu.
-  if (firebaseAvailable()) pushAllToFirebase();
+  if (firebaseAvailable() && !pulledFromFirebase) pushAllToFirebase();
 
   currentUser = readSession();
   if (currentUser) showApp(); else showLogin();
