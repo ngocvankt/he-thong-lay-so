@@ -1,384 +1,250 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#1f6feb" />
-  <title>Quản lý gói thầu thuốc v2.6</title>
-  <link rel="stylesheet" href="style.css?v=2.4" />
+  <meta charset="UTF-8">
+  <title>HỆ THỐNG LẤY SỐ KHÁM BỆNH</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=20250622">
+  <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png?v=20250622">
+  <link rel="apple-touch-icon" href="favicon-192.png?v=20250622">
+  <meta name="theme-color" content="#0b5ed7">
+  <link rel="stylesheet" href="styles.css?v=20260622-lowlatency">
+  <!-- Quill CSS -->
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
-  <div id="toastContainer" class="toast-container"></div>
 
-  <section id="loginScreen" class="login-screen">
-    <div class="login-card">
-      <div class="login-brand-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6V3Z"/></svg></div>
-      <h1>Quản lý gói thầu thuốc</h1>
-
-      <form id="loginForm" class="login-form">
-        <label>
-          Email
-          <input id="loginEmail" type="email" autocomplete="username" placeholder="admin@goithau.vn" required />
-        </label>
-        <label>
-          Mật khẩu
-          <div class="password-wrap">
-            <input id="loginPassword" type="password" autocomplete="current-password" required />
-            <button id="togglePassword" type="button" class="icon-btn" title="Hiện/ẩn mật khẩu">👁</button>
-          </div>
-        </label>
-        <button id="loginBtn" class="primary-btn full-width" type="submit">Đăng nhập</button>
-        <div id="loginMessage" class="form-message"></div>
-      </form>
-
-    </div>
-  </section>
-
-  <div id="appShell" class="app-shell hidden">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6V3Z"/></svg></div>
-        <div>
-          <h1>Quản lý gói thầu thuốc</h1>
-        </div>
-      </div>
-
-      <nav class="menu" id="menu">
-        <button class="menu-item active" data-view="dashboard"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-7h6v7"/></svg></span><span class="nav-label">Tổng quan</span></button>
-        <button class="menu-item" data-view="packages"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5h16v12H4z"/><path d="M7 7.5V5h10v2.5"/><path d="M8 12h8"/></svg></span><span class="nav-label">Gói thầu</span></button>
-        <button class="menu-item" data-view="units"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21V8h16v13"/><path d="M8 8V4h8v4"/><path d="M9 13h6M12 10v6"/><path d="M8 21v-3h8v3"/></svg></span><span class="nav-label">Đơn vị</span></button>
-        <button class="menu-item" data-view="contracts"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l3 3v15H6z"/><path d="M15 3v4h4M9 11h6M9 15h6"/></svg></span><span class="nav-label">Hợp đồng</span></button>
-        <button class="menu-item" data-view="drugs"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8.5 4.5 11 11a4.24 4.24 0 0 1-6 6l-11-11a4.24 4.24 0 0 1 6-6Z"/><path d="m8 10 6-6M10 12l-4 4"/></svg></span><span class="nav-label">Danh mục thuốc</span></button>
-        <button class="menu-item" data-view="contractItems"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 7v5c0 5 3.4 8.4 8 9 4.6-.6 8-4 8-9V7z"/><path d="m8.5 12 2.2 2.2 4.8-5"/></svg></span><span class="nav-label">Thuốc trúng thầu</span></button>
-        <button class="menu-item" data-view="stockIn"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h16v11H4z"/><path d="m4 9 3-5h10l3 5M12 3v10M8.5 9.5 12 13l3.5-3.5"/></svg></span><span class="nav-label">Nhập kho</span></button>
-        <button class="menu-item" data-view="stockOut"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h16v11H4z"/><path d="m4 9 3-5h10l3 5M12 14V4M8.5 7.5 12 4l3.5 3.5"/></svg></span><span class="nav-label">Xuất kho</span></button>
-        <button class="menu-item" data-view="adjustments"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h13"/><path d="m14 4 3 3-3 3"/><path d="M20 17H7"/><path d="m10 14-3 3 3 3"/></svg></span><span class="nav-label">Điều chỉnh hợp đồng</span></button>
-        <button class="menu-item" data-view="alerts"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2.5 20h19z"/><path d="M12 9v5M12 17.2v.1"/></svg></span><span class="nav-label">Cảnh báo</span></button>
-      </nav>
-
-      <div class="sidebar-card">
-        <div class="sync-row">
-          <span id="syncDot" class="sync-dot offline"></span>
-          <div>
-            <strong id="syncText">Chưa kết nối</strong>
-            <p id="syncDetail">Đang chờ đồng bộ</p>
-          </div>
-        </div>
-      </div>
-    </aside>
-
-    <main class="main-content">
-      <header class="topbar">
-        <div>
-          <h2 id="pageTitle">Tổng quan gói thầu</h2>
-        </div>
-        <div class="topbar-actions">
-          <input id="globalSearch" type="text" placeholder="Tìm nhanh..." />
-          <div class="user-box">
-            <div class="user-avatar">A</div>
-            <div>
-              <strong id="currentUserEmail">---</strong>
-              <span id="connectionLabel">Đang kết nối</span>
-            </div>
-          </div>
-          <button class="secondary-btn" id="importBtn">Nhập JSON</button>
-          <input id="importFile" type="file" accept="application/json,.json" hidden />
-          <button class="secondary-btn" id="exportBtn">Xuất JSON</button>
-          <button class="danger-btn" id="logoutBtn">Đăng xuất</button>
-        </div>
-      </header>
-
-      <section class="view active" id="view-dashboard">
-        <div class="cards-grid" id="dashboardCards"></div>
-
-        <div class="dashboard-grid">
-          <div class="panel span-main">
-            <div class="panel-header">
-              <h3>Tình hình thực hiện chung</h3>
-            </div>
-            <div id="overviewSummary"></div>
-          </div>
-
-          <div class="panel">
-            <div class="panel-header">
-              <h3>Cảnh báo nổi bật</h3>
-            </div>
-            <div id="highlightAlerts" class="stack-list"></div>
-          </div>
-
-          <div class="panel span-main">
-            <div class="panel-header">
-              <h3>Danh sách hợp đồng</h3>
-            </div>
-            <div id="contractsTable"></div>
-          </div>
-
-          <div class="panel">
-            <div class="panel-header">
-              <h3>Nghiệp vụ gần đây</h3>
-            </div>
-            <div id="recentTransactions" class="stack-list"></div>
-          </div>
-        </div>
-      </section>
-
-      <section class="view" id="view-packages">
-        <div class="section-head">
-          <div>
-            <h3>Quản lý gói thầu</h3>
-          </div>
-          <button class="primary-btn" id="togglePackageForm">+ Thêm gói thầu</button>
-        </div>
-        <form class="form-grid hidden" id="packageForm">
-          <input type="hidden" id="packageId" />
-          <label>Mã gói thầu<input id="packageCode" required /></label>
-          <label>Tên gói thầu<input id="packageName" required /></label>
-          <label>Ngày bắt đầu<input id="packageStart" type="date" required /></label>
-          <label>Ngày kết thúc<input id="packageEnd" type="date" required /></label>
-          <label>Trạng thái
-            <select id="packageStatus">
-              <option>Đang thực hiện</option>
-              <option>Sắp hết hạn</option>
-              <option>Kết thúc</option>
-            </select>
-          </label>
-          <label>Ghi chú<input id="packageNote" /></label>
-          <div class="form-actions">
-            <button class="primary-btn" type="submit">Lưu gói thầu</button>
-            <button class="secondary-btn" type="button" data-hide="packageForm">Đóng</button>
-          </div>
-        </form>
-        <div id="packagesTable"></div>
-      </section>
-
-      <section class="view" id="view-units">
-        <div class="section-head">
-          <div>
-            <h3>Quản lý đơn vị</h3>
-          </div>
-          <button class="primary-btn" id="toggleUnitForm">+ Thêm đơn vị</button>
-        </div>
-        <form class="form-grid hidden" id="unitForm">
-          <input type="hidden" id="unitId" />
-          <label>Tên đơn vị<input id="unitName" required /></label>
-          <label>Địa chỉ<input id="unitAddress" /></label>
-          <label>Người liên hệ<input id="unitContact" /></label>
-          <label>Số điện thoại<input id="unitPhone" /></label>
-          <div class="form-actions">
-            <button class="primary-btn" type="submit">Lưu đơn vị</button>
-            <button class="secondary-btn" type="button" data-hide="unitForm">Đóng</button>
-          </div>
-        </form>
-        <div id="unitsTable"></div>
-      </section>
-
-      <section class="view" id="view-drugs">
-        <div class="section-head drug-section-head">
-          <div>
-            <h3>Danh mục thuốc</h3>
-          </div>
-          <div class="section-actions">
-            <a class="template-btn" href="MAU_DANH_MUC_THUOC.xlsx" download>⬇ Tải file mẫu Excel</a>
-            <button class="excel-btn" id="importDrugExcelBtn" type="button">⬆ Upload Excel</button>
-            <input id="drugExcelFile" type="file" accept=".xlsx,.xls" hidden />
-            <button class="primary-btn" id="toggleDrugForm" type="button">+ Thêm thuốc</button>
-          </div>
-        </div>
-        <div class="excel-guide">
-          <div class="excel-guide-icon">XLSX</div>
-          <div>
-            <strong>Mẫu Excel gồm 7 cột:</strong>
-            <span>Số TT · Tên thuốc · Hoạt chất · Đơn vị tính · Nồng độ · Quy cách · Hạn dùng</span>
-            <small>Số TT chỉ dùng để sắp xếp. Mã thuốc sẽ được phần mềm tự tạo nếu chưa có.</small>
-          </div>
-        </div>
-        <form class="form-grid hidden" id="drugForm">
-          <input type="hidden" id="drugId" />
-          <label>Mã thuốc <span class="field-hint">Có thể để trống để tự tạo</span><input id="drugCode" /></label>
-          <label>Tên thuốc<input id="drugName" required /></label>
-          <label>Hoạt chất<input id="drugIngredient" /></label>
-          <label>Đơn vị tính<input id="drugUnit" required /></label>
-          <label>Nồng độ<input id="drugConcentration" placeholder="Ví dụ: 500mg" /></label>
-          <label>Quy cách<input id="drugPackaging" placeholder="Ví dụ: Hộp 10 vỉ x 10 viên" /></label>
-          <label>Hạn dùng<input id="drugShelfLife" placeholder="Ví dụ: 36 tháng" /></label>
-          <label>Cảnh báo tồn kho<input id="drugAlertQty" type="number" min="0" value="0" /></label>
-          <div class="form-actions">
-            <button class="primary-btn" type="submit">Lưu thuốc</button>
-            <button class="secondary-btn" type="button" data-hide="drugForm">Đóng</button>
-          </div>
-        </form>
-        <div id="drugsTable"></div>
-      </section>
-
-      <section class="view" id="view-contracts">
-        <div class="section-head">
-          <div>
-            <h3>Quản lý hợp đồng</h3>
-          </div>
-          <button class="primary-btn" id="toggleContractForm">+ Thêm hợp đồng</button>
-        </div>
-        <form class="form-grid hidden" id="contractForm">
-          <input type="hidden" id="contractId" />
-          <label>Gói thầu<select id="contractPackage" required></select></label>
-          <label>Đơn vị<select id="contractUnit" required></select></label>
-          <label>Số hợp đồng<input id="contractNumber" required /></label>
-          <label>Ngày ký<input id="contractSignDate" type="date" required /></label>
-          <label>Ngày hết hạn<input id="contractEndDate" type="date" required /></label>
-          <label>Cảnh báo trước (ngày)<input id="contractWarningDays" type="number" min="0" value="30" /></label>
-          <div class="form-actions">
-            <button class="primary-btn" type="submit">Lưu hợp đồng</button>
-            <button class="secondary-btn" type="button" data-hide="contractForm">Đóng</button>
-          </div>
-        </form>
-        <div id="allContractsTable"></div>
-      </section>
-
-      <section class="view" id="view-contractItems">
-        <div class="section-head">
-          <div>
-            <h3>Thuốc trúng thầu theo hợp đồng</h3>
-          </div>
-          <button class="primary-btn" id="toggleContractItemForm">+ Thêm mặt hàng</button>
-        </div>
-        <form class="form-grid hidden" id="contractItemForm">
-          <input type="hidden" id="contractItemId" />
-          <label>Hợp đồng<select id="contractItemContract" required></select></label>
-          <label>Thuốc<select id="contractItemDrug" required></select></label>
-          <label>Số lượng hợp đồng<input id="contractItemQty" type="number" min="0" required /></label>
-          <label>Đơn giá<input id="contractItemPrice" type="text" inputmode="numeric" autocomplete="off" data-money="true" value="0" placeholder="0" /></label>
-          <label>Cảnh báo số lượng còn lại<input id="contractItemAlertQty" type="number" min="0" value="0" /></label>
-          <div class="form-actions">
-            <button class="primary-btn" type="submit">Lưu mặt hàng</button>
-            <button class="secondary-btn" type="button" data-hide="contractItemForm">Đóng</button>
-          </div>
-        </form>
-        <div id="contractItemsTable"></div>
-      </section>
-
-      <section class="view" id="view-stockIn">
-        <div class="section-head">
-          <div>
-            <h3>Nhập kho công ty</h3>
-          </div>
-          <button class="primary-btn" id="toggleStockInForm">+ Phiếu nhập kho</button>
-        </div>
-        <form class="form-grid hidden" id="stockInForm">
-          <input type="hidden" id="stockInId" />
-          <label>Thuốc<select id="stockInDrug" required></select></label>
-          <label>Ngày nhập<input id="stockInDate" type="date" required /></label>
-          <label>Số phiếu<input id="stockInCode" required /></label>
-          <label>Số lượng<input id="stockInQty" type="number" min="1" required /></label>
-          <label>Số lô<input id="stockInLot" /></label>
-          <label>Hạn dùng<input id="stockInExp" type="date" /></label>
-          <label>Nguồn nhập<input id="stockInSource" /></label>
-          <div class="form-actions">
-            <button class="primary-btn" type="submit">Lưu phiếu nhập</button>
-            <button class="secondary-btn" type="button" data-hide="stockInForm">Đóng</button>
-          </div>
-        </form>
-        <div id="stockInTable"></div>
-      </section>
-
-      <section class="view" id="view-stockOut">
-        <div class="section-head">
-          <div>
-            <h3>Xuất kho cho đơn vị</h3>
-          </div>
-          <button class="primary-btn" id="toggleStockOutForm">+ Phiếu xuất kho</button>
-        </div>
-        <form class="form-grid hidden" id="stockOutForm">
-          <input type="hidden" id="stockOutId" />
-          <label>Hợp đồng<select id="stockOutContract" required></select></label>
-          <label>Thuốc<select id="stockOutDrug" required></select></label>
-          <label>Ngày xuất<input id="stockOutDate" type="date" required /></label>
-          <label>Số phiếu<input id="stockOutCode" required /></label>
-          <label>Số lượng xuất<input id="stockOutQty" type="number" min="1" required /></label>
-          <label>Ghi chú<input id="stockOutNote" /></label>
-          <div class="form-actions">
-            <button class="primary-btn" type="submit">Lưu phiếu xuất</button>
-            <button class="secondary-btn" type="button" data-hide="stockOutForm">Đóng</button>
-          </div>
-        </form>
-        <div id="stockOutTable"></div>
-      </section>
-
-      <section class="view" id="view-adjustments">
-        <div class="section-head">
-          <div>
-            <h3>Điều chỉnh hợp đồng</h3>
-          </div>
-          <button class="primary-btn" id="toggleAdjustmentForm">+ Tạo điều chỉnh</button>
-        </div>
-        <form class="form-grid hidden" id="adjustmentForm">
-          <input type="hidden" id="adjustmentId" />
-          <label>Từ mặt hàng HĐ<select id="adjustFromItem" required></select></label>
-          <label>Sang mặt hàng HĐ<select id="adjustToItem" required></select></label>
-          <label>Ngày điều chỉnh<input id="adjustDate" type="date" required /></label>
-          <label>Số lượng điều chỉnh<input id="adjustQty" type="number" min="1" required /></label>
-          <label>Số văn bản<input id="adjustDoc" /></label>
-          <label>Lý do<input id="adjustReason" /></label>
-          <div class="form-actions">
-            <button class="primary-btn" type="submit">Lưu điều chỉnh</button>
-            <button class="secondary-btn" type="button" data-hide="adjustmentForm">Đóng</button>
-          </div>
-        </form>
-        <div id="adjustmentsTable"></div>
-      </section>
-
-      <section class="view" id="view-alerts">
-        <div class="section-head">
-          <div>
-            <h3>Danh sách cảnh báo</h3>
-          </div>
-        </div>
-        <div id="alertsContainer"></div>
-      </section>
-    </main>
-  </div>
-
-
-  <div id="contractDetailModal" class="contract-modal hidden" onclick="contractDetailBackdrop(event)">
-    <div class="contract-modal-card" role="dialog" aria-modal="true" aria-labelledby="contractDetailTitle">
-      <div class="contract-modal-header">
-        <div>
-          <h3 id="contractDetailTitle">Chi tiết hợp đồng</h3>
-        </div>
-        <button type="button" class="contract-modal-close" onclick="closeContractDetail()" aria-label="Đóng">×</button>
-      </div>
-      <div id="contractDetailMeta" class="contract-meta-grid"></div>
-      <div id="contractDetailSummary" class="contract-summary-grid"></div>
-      <div class="contract-detail-section-title">Danh mục thuốc trong hợp đồng</div>
-      <div id="contractDetailBody" class="contract-detail-body"></div>
-      <div class="contract-modal-footer">
-        <button type="button" class="secondary-btn" onclick="closeContractDetail()">Đóng</button>
-      </div>
+  <div id="feature-update-banner" class="app-update-banner no-print" role="status" aria-label="Thông báo cập nhật phần mềm">
+    <div class="app-update-marquee">
+      <span>🔔 Cập nhật lúc 15:10 ngày 22/06/2026: Tối ưu lại cơ chế gọi âm thanh trên web app Vercel theo hướng giảm độ trễ giữa các đoạn “Mời số” + “số cần gọi” + “vào phòng khám”, giữ nguyên tốc độ giọng đọc, giữ giao diện compact và favicon logo Trung tâm. Các chức năng cấp số, ưu tiên, gọi số, in vé, quản lý phòng khám và hiển thị tivi được giữ nguyên.</span>
     </div>
   </div>
 
-  <div id="loadingOverlay" class="loading-overlay hidden">
-    <div class="loading-box">
-      <div class="spinner"></div>
-      <strong id="loadingText">Đang xử lý...</strong>
+  <header class="app-top-title no-print">
+    <div class="app-top-kicker">TRUNG TÂM Y TẾ KHU VỰC HÀM THUẬN BẮC</div>
+    <div class="app-top-main">HỆ THỐNG LẤY SỐ KHÁM BỆNH</div>
+  </header>
+
+  <div class="login-box">
+    <h1>HỆ THỐNG LẤY SỐ KHÁM BỆNH</h1>
+    <h2><i class="fas fa-sign-in-alt"></i> Đăng nhập</h2>
+    
+    <div class="login-field">
+      <label><i class="fas fa-user"></i> ID:</label>
+      <input type="text" id="username" placeholder="Nhập ID...">
+    </div>
+    
+    <div class="login-field">
+      <label><i class="fas fa-lock"></i> Mật khẩu:</label>
+      <input type="password" id="password" placeholder="Nhập mật khẩu...">
+    </div>
+    
+    <button onclick="login()">🔐 Đăng nhập</button>
+  </div>
+
+<!-- Phát số -->
+<div id="phatso-container" class="container" style="display: none;">
+  <h2 class="section-title">
+    <i class="fas fa-clipboard-list"></i>
+    Phát số khám bệnh
+  </h2>
+  <button class="logout-btn" onclick="logout()">Đăng xuất</button>
+  <table>
+    <thead>
+      <tr>
+        <th>Phòng khám</th>
+        <th>Đã cấp</th>
+        <th>Còn lại</th>
+        <th>Thao tác</th>
+      </tr>
+    </thead>
+    <tbody id="phatso-list"></tbody>
+  </table>
+</div>
+
+<!-- Phòng khám -->
+<div id="phongkham-container" class="container clinic-container" style="display: none;">
+  <h2 id="main-heading" class="clinic-setup-heading">
+    VUI LÒNG THIẾT LẬP PHÒNG KHÁM!
+  </h2>
+
+  <!-- Hiển thị tên phòng khám -->
+  <div class="clinic-title-wrap">
+    <h3 id="clinic-name-display" class="clinic-header" style="display: none;">
+      <span id="clinic-name-text"></span>
+    </h3>
+  </div>
+
+  <!-- Khối chọn phòng khám -->
+  <div id="clinic-select-container" class="clinic-select-card">
+    <div class="clinic-select-title">Chọn phòng khám làm việc</div>
+    <div class="clinic-select-row">
+      <select id="clinic-select">
+        <option value="">-- Chọn phòng khám --</option>
+      </select>
+      <button onclick="confirmClinic()" class="clinic-ok-btn">✅ Xác nhận</button>
     </div>
   </div>
 
-  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-  <script>
-    if (location.protocol === 'file:') {
-      document.addEventListener('DOMContentLoaded', function () {
-        const login = document.getElementById('loginScreen');
-        if (login) {
-          const box = login.querySelector('.login-card') || login.querySelector('.login-box') || login.firstElementChild;
-          if (box) {
-            const notice = document.createElement('div');
-            notice.style.cssText = 'margin-top:16px;padding:12px 14px;border-radius:12px;background:#fff4e5;color:#9a5a00;font-weight:700;line-height:1.5;border:1px solid #ffd79a';
-            notice.innerHTML = 'Không mở trực tiếp file <b>index.html</b>. Hãy đóng tab này và chạy <b>1_MO_PHAN_MEM.bat</b> để mở bằng localhost.';
-            box.appendChild(notice);
-          }
-        }
-      });
+  <!-- Giao diện chính -->
+  <div id="phongkham-action" class="clinic-dashboard" style="display: none;">
+    <div class="clinic-call-panel">
+      <div class="call-panel-label">KHU VỰC GỌI SỐ KHÁM BỆNH</div>
+      <button onclick="callNextNumbers(1)" class="next-btn">📢 Gọi số tiếp theo</button>
+      <div class="call-panel-note">Bấm một lần để gọi số kế tiếp theo thứ tự đã cấp</div>
+    </div>
+
+    <div id="phongkham-stats" class="phongkham-stats-box" style="display: none;">
+      <div class="stat-box stat-issued">
+        <div class="stat-icon">📋</div>
+        <div class="stat-label">Đã cấp</div>
+        <div id="total-issued" class="stat-value">0</div>
+      </div>
+      <div class="stat-box stat-called">
+        <div class="stat-icon">🔊</div>
+        <div class="stat-label">Vừa gọi</div>
+        <div id="last-called" class="stat-value">-</div>
+      </div>
+      <div class="stat-box stat-remaining">
+        <div class="stat-icon">⏳</div>
+        <div class="stat-label">Còn lại</div>
+        <div id="remaining" class="stat-value">0</div>
+      </div>
+    </div>
+
+    <div id="called-section" class="called-section" style="display: none;">
+      <label for="called-select">Chọn lại số đã gọi để gọi lại</label>
+      <select id="called-select">
+        <option value="">-- Chọn số đã gọi --</option>
+      </select>
+    </div>
+
+    <div class="clinic-action-footer">
+      <div id="top-right-buttons" style="display: none; gap: 10px;">
+        <button onclick="switchClinic()" class="switch-clinic-btn">🔄 Đổi phòng khám</button>
+        <button onclick="logout()" class="clinic-logout-btn">🚪 Đăng xuất</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Admin -->
+<div id="admin-container" class="container" style="display: none;">
+  <h2 class="section-title">🩺 Quản lý Phòng Khám</h2>
+  <button class="logout-btn" onclick="logout()">Đăng xuất</button>
+  <table id="admin-clinic-list">
+    <thead>
+      <tr>
+        <th>Thêm / Xóa</th>
+        <th>Tên Phòng Khám</th>
+        <th>Giới hạn lượt khám</th>
+        <th>Đã cấp</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+          <!-- các phòng khám sẽ được thêm tại đây bằng script -->
+      <tr class="add-row">
+        <td>
+          <button onclick="addClinic()" title="Thêm phòng khám" class="icon-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="white" viewBox="0 0 24 24">
+              <path d="M12 5c.552 0 1 .448 1 1v5h5c.552 0 1 .448 1 1s-.448 1-1 1h-5v5c0 .552-.448 1-1 1s-1-.448-1-1v-5H6c-.552 0-1-.448-1-1s.448-1 1-1h5V6c0-.552.448-1 1-1z"/>
+            </svg>
+          </button>
+        </td>
+        <td>
+          <input type="text" id="new-clinic-name" class="admin-input-text" placeholder="Tên phòng khám" />
+        </td>
+        <td>
+          <input type="number" id="new-clinic-limit" class="admin-input-number" placeholder="Giới hạn" min="1" />
+        </td>
+        <td></td>
+      </tr>
+    </tbody>
+  </table>
+  <div id="highlight-editor" style="margin-top: 30px;">
+      <div style="margin-top: 20px;">
+    <button onclick="saveChanges()">💾 Lưu thay đổi</button>
+    <button onclick="resetIssued()">🔄 Reset về 100 số</button>
+  </div>
+    <h3>Chỉnh sửa Dịch vụ nổi bật:</h3>
+    <div id="editor" style="height: 200px;"></div>
+    <button onclick="saveHighlight()" style="margin-top: 10px;">Lưu nội dung</button>
+  </div>
+</div>
+
+<!-- Khu vực in vé -->
+<div id="print-area" style="display: none;">
+  <div class="ticket-wrapper">
+    <!-- Cột bên trái: Thông tin khám bệnh (30%) -->
+    <div class="ticket-left">
+    <img src="logott.png" class="watermark-front" alt="Logo">
+    <h3 id="clinicNamePrint" class="clinic-title">Tên phòng khám</h3>
+    <p id="ticketTypePrint" class="ticket-type">SỐ THỨ TỰ</p>
+    <h1 id="ticketNumberPrint">00</h1>
+    <p id="timePrint" class="print-time">Ngày tháng năm</p>
+    <p id="waitingMessage" style="margin-top: 10px; font-size: 10pt; font-style: italic;">
+    Xin vui lòng chờ đến lượt khám bệnh!
+   </p>
+    </div>
+
+    <!-- Cột bên phải: Dịch vụ nổi bật (70%) -->
+    <div class="ticket-right">
+      <h3 style="margin-top: 0;">Dịch vụ nổi bật</h3>
+      <div id="highlight-service"></div>
+    </div>
+  </div>
+</div>
+
+<footer id="app-copyright" class="app-copyright no-print">
+  Bản quyền © 2025 - Designed &amp; Coded by Đặng Ngọc Văn
+</footer>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="script.js?v=20260622-lowlatency"></script>
+
+<!-- Quill JS -->
+<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+<script>
+  const quill = new Quill('#editor', { theme: 'snow' });
+
+  function saveHighlight() {
+    const content = quill.root.innerHTML.trim();
+    if (!content) {
+      alert("Nội dung không được để trống!");
+      return;
     }
-  </script>
-  <script type="module" src="app.js?v=2.6.1"></script>
+
+    // ✅ Lưu vào localStorage
+    localStorage.setItem("highlightHTML", content);
+
+    // ✅ Lưu lên Firebase
+    firebase.database().ref("highlightHTML").set(content)
+      .then(() => alert("Đã lưu nội dung dịch vụ nổi bật!"))
+      .catch(err => alert("Lỗi khi lưu Firebase: " + err.message));
+  }
+
+  function renderHighlightEditor() {
+    // ✅ Ưu tiên lấy từ Firebase
+    firebase.database().ref("highlightHTML").once("value").then(snapshot => {
+      const content = snapshot.val();
+      if (content) {
+        quill.root.innerHTML = content;
+        localStorage.setItem("highlightHTML", content);
+      }
+    });
+  }
+
+  window.addEventListener("load", renderHighlightEditor);
+</script>
+<div id="popup-update" class="hidden fixed bottom-5 right-5 bg-yellow-100 text-yellow-900 border border-yellow-500 rounded-lg p-4 shadow-lg z-50 max-w-xs w-full">
+  <div id="popup-message" class="mb-2">⚠️ Đang tải...</div>
+  <button onclick="hidePopupUpdate()" class="px-3 py-1 bg-yellow-400 hover:bg-yellow-300 text-sm font-semibold rounded">
+    OK
+  </button>
+</div>
 </body>
 </html>
